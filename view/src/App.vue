@@ -1,7 +1,7 @@
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand" @click="go('products')">
+      <div class="brand" @click="goHome">
         <span class="brand-mark">SG</span>
         <span class="brand-copy">
           <strong>ShopGuard</strong>
@@ -22,7 +22,7 @@
           <Package2 :size="16" />
           样本
         </button>
-        <button class="nav-chip" type="button" @click="go('orders')">
+        <button v-if="!isAdminUser" class="nav-chip" type="button" @click="go('orders')">
           <Clock3 :size="16" />
           记录
         </button>
@@ -30,7 +30,7 @@
           <Settings2 :size="16" />
           研究
         </button>
-        <button class="nav-chip cart-chip" type="button" @click="openCart">
+        <button v-if="!isAdminUser" class="nav-chip cart-chip" type="button" @click="openCart">
           <ShoppingCart :size="16" />
           待购
           <span class="badge">{{ cartCount }}</span>
@@ -57,17 +57,21 @@
             </p>
 
             <div class="hero-actions">
-              <button class="primary-btn" type="button" @click="go('products')">
+              <button class="primary-btn" type="button" @click="isAdminUser ? go('admin') : go('products')">
                 <Search :size="16" />
-                开始观察
+                {{ isAdminUser ? '查看研究后台' : '开始观察' }}
               </button>
-              <button class="secondary-btn" type="button" @click="openAi('guardian')">
+              <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="openAi('guardian')">
                 <ShieldCheck :size="16" />
                 打开守护 AI
               </button>
-              <button class="secondary-btn" type="button" @click="go('orders')">
+              <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="go('orders')">
                 <Truck :size="16" />
                 查看记录
+              </button>
+              <button v-else class="secondary-btn" type="button" @click="go('admin')">
+                <BarChart3 :size="16" />
+                分析用户
               </button>
             </div>
 
@@ -80,13 +84,21 @@
                 <strong>{{ categories.length }}</strong>
                 <span>分类</span>
               </div>
-              <div class="metric">
+              <div v-if="!isAdminUser" class="metric">
                 <strong>{{ cartCount }}</strong>
                 <span>待购</span>
               </div>
-              <div class="metric">
+              <div v-if="!isAdminUser" class="metric">
                 <strong>{{ orders.length }}</strong>
                 <span>记录</span>
+              </div>
+              <div v-if="isAdminUser" class="metric">
+                <strong>{{ adminStats?.total_users ?? 0 }}</strong>
+                <span>用户</span>
+              </div>
+              <div v-if="isAdminUser" class="metric">
+                <strong>{{ adminStats?.total_behaviors ?? 0 }}</strong>
+                <span>行为</span>
               </div>
             </div>
           </div>
@@ -219,7 +231,7 @@
                   <h2>{{ selectedProduct.name }}</h2>
                   <p>{{ categoryName(selectedProduct.category_id) }}</p>
                 </div>
-                <button class="ghost-btn" type="button" @click="openAi('seller', selectedProduct)">
+                <button v-if="!isAdminUser" class="ghost-btn" type="button" @click="openAi('seller', selectedProduct)">
                   <MessageSquareMore :size="16" />
                   问促销 AI
                 </button>
@@ -267,7 +279,7 @@
                 {{ selectedProduct.description || selectedProduct.subtitle || '暂无描述。' }}
               </p>
 
-              <div class="detail-actions">
+              <div v-if="!isAdminUser" class="detail-actions">
                 <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
                   <ShoppingCart :size="16" />
                   加入待购清单
@@ -279,6 +291,17 @@
                 <button class="secondary-btn" type="button" @click="setPage('checkout')">
                   <CreditCard :size="16" />
                   进入决策
+                </button>
+              </div>
+
+              <div v-else class="detail-actions">
+                <button class="primary-btn" type="button" @click="go('admin')">
+                  <BarChart3 :size="16" />
+                  分析用户行为
+                </button>
+                <button class="secondary-btn" type="button" @click="loadProductInsights(selectedProduct.id)">
+                  <RefreshCcw :size="16" />
+                  刷新洞察
                 </button>
               </div>
 
@@ -434,7 +457,7 @@
                   <h2>{{ selectedOrderView.order_no }}</h2>
                   <p>{{ statusLabel(selectedOrderView.status) }}</p>
                 </div>
-                <button class="ghost-btn" type="button" @click="openCart">
+                <button v-if="!isAdminUser" class="ghost-btn" type="button" @click="openCart">
                   <ShoppingCart :size="16" />
                   打开待购清单
                 </button>
@@ -878,7 +901,7 @@
       </section>
     </main>
 
-    <div v-if="cartOpen" class="overlay" @click.self="closeCart">
+    <div v-if="cartOpen && !isAdminUser" class="overlay" @click.self="closeCart">
       <aside class="drawer">
         <div class="drawer-head">
           <div>
@@ -933,7 +956,7 @@
       </aside>
     </div>
 
-    <div v-if="aiOpen" class="overlay" @click.self="closeAi">
+    <div v-if="aiOpen && !isAdminUser" class="overlay" @click.self="closeAi">
       <aside class="drawer ai-drawer">
         <div class="drawer-head">
           <div>
@@ -1191,9 +1214,15 @@ const orderStatusOptions = [
   { value: 'cancelled', label: '已取消' },
 ];
 
+const isAdminUser = computed(() => user.value?.role === 'admin');
+
 watch(
   () => route.value.page,
   async (next) => {
+    if (isAdminUser.value && (next === 'orders' || next === 'checkout')) {
+      go('admin');
+      return;
+    }
     if (next === 'orders') {
       await loadOrders();
     } else if (next === 'admin') {
@@ -1339,7 +1368,6 @@ const aiContextLabel = computed(() => {
   return product ? `当前样本：${product.name}` : '当前样本：未选择';
 });
 
-const isAdminUser = computed(() => user.value?.role === 'admin');
 const behaviorBreakdown = computed(() => adminStats.value?.behavior_breakdown || []);
 const adminStatCards = computed(() => [
   { label: '用户', value: adminStats.value?.total_users ?? 0 },
@@ -1372,7 +1400,10 @@ onBeforeUnmount(() => {
 });
 
 async function bootstrap() {
-  await Promise.all([loadCategories(), loadProducts(), loadCart()]);
+  await Promise.all([loadCategories(), loadProducts(), isAdminUser.value ? Promise.resolve() : loadCart()]);
+  if (isAdminUser.value && page.value === 'admin') {
+    await loadAdmin();
+  }
   document.title = 'ShopGuard 决策研究台';
 }
 
@@ -1392,12 +1423,20 @@ function go(pageName) {
     openAuth('login');
     return;
   }
+  if (isAdminUser.value && (pageName === 'orders' || pageName === 'checkout')) {
+    toast('管理员账号专注研究后台，不参与待购或下单流程', 'error');
+    pageName = 'admin';
+  }
   window.location.hash = `/${pageName}`;
   syncRoute();
 }
 
 function setPage(pageName) {
   go(pageName);
+}
+
+function goHome() {
+  go(isAdminUser.value ? 'admin' : 'products');
 }
 
 function applySearch() {
@@ -1417,12 +1456,14 @@ function resetFilters() {
 
 function pickProduct(id) {
   selectedProductId.value = id;
-  void trackBehavior('view_product', {
-    productId: id,
-    from: page.value,
-    query: filters.q,
-    category: filters.category,
-  });
+  if (!isAdminUser.value) {
+    void trackBehavior('view_product', {
+      productId: id,
+      from: page.value,
+      query: filters.q,
+      category: filters.category,
+    });
+  }
   if (page.value !== 'products') {
     go('products');
   }
@@ -1437,7 +1478,7 @@ function pickAdminOrder(id) {
 }
 
 function openCart() {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser()) return;
   cartOpen.value = true;
 }
 
@@ -1446,7 +1487,7 @@ function closeCart() {
 }
 
 function openCheckout() {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser()) return;
   closeCart();
   go('checkout');
 }
@@ -1461,7 +1502,7 @@ function closeAuth() {
 }
 
 function openAi(type = 'seller', product = selectedProduct.value) {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser('管理员账号不参与促销/守护 AI 对话')) return;
   aiType.value = type;
   aiProductId.value = product?.id || '';
   aiOpen.value = true;
@@ -1479,16 +1520,18 @@ function closeAi() {
 
 function switchAi(type) {
   aiType.value = type;
-  void trackBehavior('click', {
-    action: 'switch_ai',
-    aiType: type,
-    productId: aiProductId.value || selectedProduct.value?.id || null,
-  });
+  if (!isAdminUser.value) {
+    void trackBehavior('click', {
+      action: 'switch_ai',
+      aiType: type,
+      productId: aiProductId.value || selectedProduct.value?.id || null,
+    });
+  }
   loadAiHistory(type);
 }
 
 async function trackBehavior(behaviorType, payload = {}) {
-  if (!token.value) return;
+  if (!token.value || isAdminUser.value) return;
   try {
     await ResearchAPI.track(behaviorType, payload);
   } catch {
@@ -1500,6 +1543,16 @@ function ensureAuth() {
   if (token.value) return true;
   openAuth('login');
   return false;
+}
+
+function ensureStandardUser(message = '管理员账号专注研究后台，不参与待购或下单流程') {
+  if (!ensureAuth()) return false;
+  if (isAdminUser.value) {
+    toast(message, 'error');
+    go('admin');
+    return false;
+  }
+  return true;
 }
 
 function toast(message, type = 'success') {
@@ -1598,7 +1651,7 @@ async function loadProductInsights(productId) {
 }
 
 async function loadCart() {
-  if (!token.value) {
+  if (!token.value || isAdminUser.value) {
     cart.value = [];
     return;
   }
@@ -1620,6 +1673,15 @@ async function loadCart() {
 
 async function loadOrders() {
   if (!ensureAuth()) return;
+  if (isAdminUser.value) {
+    orders.value = [];
+    selectedOrderId.value = '';
+    selectedOrderDetail.value = null;
+    if (page.value === 'orders') {
+      go('admin');
+    }
+    return;
+  }
   loading.orders = true;
   try {
     const result = await OrderAPI.getList();
@@ -1640,7 +1702,7 @@ async function loadOrders() {
 }
 
 async function loadOrderDetail(orderId) {
-  if (!orderId || !token.value) {
+  if (!orderId || !token.value || isAdminUser.value) {
     selectedOrderDetail.value = null;
     return;
   }
@@ -1743,7 +1805,7 @@ async function saveAdminOrderStatus() {
 }
 
 async function addToCart(product) {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser()) return;
   try {
     await CartAPI.add(product.id, 1);
     await loadCart();
@@ -1763,7 +1825,7 @@ async function addToCart(product) {
 }
 
 async function changeCartQuantity(item, delta) {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser()) return;
   const nextQuantity = Number(item.quantity || 1) + delta;
   try {
     if (nextQuantity <= 0) {
@@ -1793,7 +1855,7 @@ async function changeCartQuantity(item, delta) {
 }
 
 async function removeCartItem(item) {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser()) return;
   try {
     await CartAPI.remove(item.id);
     await loadCart();
@@ -1811,7 +1873,7 @@ async function removeCartItem(item) {
 }
 
 async function submitOrder() {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser()) return;
   const items = cart.value.map((item) => ({
     productId: item.product_id,
     quantity: Number(item.quantity || 1),
@@ -1872,7 +1934,7 @@ async function saveAdminConfig() {
 }
 
 async function loadAiHistory(type) {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser('管理员账号不参与促销/守护 AI 对话')) return;
   try {
     const result = await AIAPI.getHistory(type);
     aiHistory[type] = (result.history || []).slice().reverse();
@@ -1884,7 +1946,7 @@ async function loadAiHistory(type) {
 }
 
 async function sendAiMessage() {
-  if (!ensureAuth()) return;
+  if (!ensureStandardUser('管理员账号不参与促销/守护 AI 对话')) return;
   const message = aiMessage.value.trim();
   if (!message || aiSending.value) return;
 
@@ -1931,11 +1993,15 @@ async function submitAuth() {
     TokenManager.setUser(result.user);
     closeAuth();
     toast(authMode.value === 'login' ? '登录成功' : '注册成功');
-    await Promise.all([loadCart(), loadOrders()]);
     if (isAdminUser.value) {
+      cart.value = [];
+      orders.value = [];
       await loadAdmin();
+      go('admin');
+    } else {
+      await Promise.all([loadCart(), loadOrders()]);
+      go('products');
     }
-    go('products');
   } catch (error) {
     toast(error.message || (authMode.value === 'login' ? '登录失败' : '注册失败'), 'error');
   }

@@ -79,31 +79,43 @@ export async function getProductInsights({ env, params }) {
     relatedRows,
   ] = await Promise.all([
     env.db.prepare(
-      "SELECT COUNT(*) as value FROM user_behaviors WHERE product_id = ? AND behavior_type = 'view_product'"
+      `SELECT COUNT(*) as value
+       FROM user_behaviors ub
+       JOIN users u ON u.id = ub.user_id
+       WHERE u.role = 'user' AND ub.product_id = ? AND ub.behavior_type = 'view_product'`
     ).bind(params.id).first(),
     env.db.prepare(
-      "SELECT COUNT(*) as value FROM user_behaviors WHERE product_id = ? AND behavior_type = 'add_cart'"
+      `SELECT COUNT(*) as value
+       FROM user_behaviors ub
+       JOIN users u ON u.id = ub.user_id
+       WHERE u.role = 'user' AND ub.product_id = ? AND ub.behavior_type = 'add_cart'`
     ).bind(params.id).first(),
     env.db.prepare(
-      "SELECT COUNT(*) as value FROM order_items WHERE product_id = ?"
+      `SELECT COUNT(*) as value
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       JOIN users u ON u.id = o.user_id
+       WHERE u.role = 'user' AND oi.product_id = ?`
     ).bind(params.id).first(),
     env.db.prepare(
       `SELECT COALESCE(SUM(oi.subtotal), 0) as value
        FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
-       WHERE oi.product_id = ? AND o.status != 'cancelled'`
+       JOIN users u ON u.id = o.user_id
+       WHERE u.role = 'user' AND oi.product_id = ? AND o.status != 'cancelled'`
     ).bind(params.id).first(),
     env.db.prepare(
-      `SELECT ai_type, COUNT(*) as value
-       FROM ai_conversations
-       WHERE product_id = ? AND role = 'user'
-       GROUP BY ai_type`
+      `SELECT ac.ai_type, COUNT(*) as value
+       FROM ai_conversations ac
+       JOIN users u ON u.id = ac.user_id
+       WHERE u.role = 'user' AND ac.product_id = ? AND ac.role = 'user'
+       GROUP BY ac.ai_type`
     ).bind(params.id).all(),
     env.db.prepare(
       `SELECT ub.behavior_type, ub.session_id, ub.timestamp, ub.metadata_json, u.username
        FROM user_behaviors ub
-       LEFT JOIN users u ON u.id = ub.user_id
-       WHERE ub.product_id = ?
+       JOIN users u ON u.id = ub.user_id
+       WHERE u.role = 'user' AND ub.product_id = ?
        ORDER BY ub.timestamp DESC
        LIMIT 8`
     ).bind(params.id).all(),

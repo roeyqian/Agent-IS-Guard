@@ -161,3 +161,12 @@ export async function requireAdmin(request, env) {
   }
   return session;
 }
+
+export async function requireStandardUser(request, env) {
+  const token = requireAuth(request);
+  const session = await getSession(token, env);
+  if (session.role === 'admin') {
+    throw { status: 403, message: "Admin accounts are limited to research management" };
+  }
+  return { token, session };
+}

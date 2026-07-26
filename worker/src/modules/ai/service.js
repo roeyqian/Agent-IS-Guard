@@ -1,11 +1,10 @@
-import { json, readJsonBody, requireAuth, getSession, createId } from "../../app/http.js";
+import { json, readJsonBody, requireStandardUser, createId } from "../../app/http.js";
 import { callDeepSeek } from "./deepseek.js";
 import { getSellerPrompt } from "./seller.js";
 import { getGuardianPrompt } from "./guardian.js";
 
 export async function chat({ request, env }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { token, session } = await requireStandardUser(request, env);
   const { message, aiType, productId } = await readJsonBody(request);
 
   if (!message || !aiType) {
@@ -83,8 +82,7 @@ export async function chat({ request, env }) {
 }
 
 export async function getHistory({ request, env, url }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
   const aiType = url.searchParams.get('aiType');
 
   let query = "SELECT * FROM ai_conversations WHERE user_id = ?";

@@ -57,19 +57,19 @@ export async function updateAiConfig({ request, env }) {
 export async function getStats({ request, env }) {
   await requireAdmin(request, env);
 
-  const { total_users } = await env.db.prepare("SELECT COUNT(*) as total_users FROM users").first();
-  const { total_orders } = await env.db.prepare("SELECT COUNT(*) as total_orders FROM orders").first();
-  const { total_revenue } = await env.db.prepare("SELECT COALESCE(SUM(final_amount), 0) as total_revenue FROM orders WHERE status != 'cancelled'").first();
-  const { total_conversations } = await env.db.prepare("SELECT COUNT(*) as total_conversations FROM ai_conversations").first();
+  const { total_users } = await env.db.prepare("SELECT COUNT(*) as total_users FROM users WHERE role = 'user'").first();
+  const { total_orders } = await env.db.prepare("SELECT COUNT(*) as total_orders FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user'").first();
+  const { total_revenue } = await env.db.prepare("SELECT COALESCE(SUM(o.final_amount), 0) as total_revenue FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user' AND o.status != 'cancelled'").first();
+  const { total_conversations } = await env.db.prepare("SELECT COUNT(*) as total_conversations FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user'").first();
   const { total_products } = await env.db.prepare("SELECT COUNT(*) as total_products FROM products").first();
-  const { total_behaviors } = await env.db.prepare("SELECT COUNT(*) as total_behaviors FROM user_behaviors").first();
-  const { view_product_count } = await env.db.prepare("SELECT COUNT(*) as view_product_count FROM user_behaviors WHERE behavior_type = 'view_product'").first();
-  const { add_cart_count } = await env.db.prepare("SELECT COUNT(*) as add_cart_count FROM user_behaviors WHERE behavior_type = 'add_cart'").first();
-  const { remove_cart_count } = await env.db.prepare("SELECT COUNT(*) as remove_cart_count FROM user_behaviors WHERE behavior_type = 'remove_cart'").first();
-  const { place_order_count } = await env.db.prepare("SELECT COUNT(*) as place_order_count FROM user_behaviors WHERE behavior_type = 'place_order'").first();
-  const { chat_ai_count } = await env.db.prepare("SELECT COUNT(*) as chat_ai_count FROM user_behaviors WHERE behavior_type = 'chat_ai'").first();
-  const { search_count } = await env.db.prepare("SELECT COUNT(*) as search_count FROM user_behaviors WHERE behavior_type = 'search'").first();
-  const { click_count } = await env.db.prepare("SELECT COUNT(*) as click_count FROM user_behaviors WHERE behavior_type = 'click'").first();
+  const { total_behaviors } = await env.db.prepare("SELECT COUNT(*) as total_behaviors FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user'").first();
+  const { view_product_count } = await env.db.prepare("SELECT COUNT(*) as view_product_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'view_product'").first();
+  const { add_cart_count } = await env.db.prepare("SELECT COUNT(*) as add_cart_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'add_cart'").first();
+  const { remove_cart_count } = await env.db.prepare("SELECT COUNT(*) as remove_cart_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'remove_cart'").first();
+  const { place_order_count } = await env.db.prepare("SELECT COUNT(*) as place_order_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'place_order'").first();
+  const { chat_ai_count } = await env.db.prepare("SELECT COUNT(*) as chat_ai_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'chat_ai'").first();
+  const { search_count } = await env.db.prepare("SELECT COUNT(*) as search_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'search'").first();
+  const { click_count } = await env.db.prepare("SELECT COUNT(*) as click_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'click'").first();
 
   return json({
     total_users,
@@ -96,7 +96,7 @@ export async function getOrders({ request, env, url }) {
   const limit = clampInt(url.searchParams.get('limit'), 25, 1, 100);
   const status = url.searchParams.get('status');
 
-  let where = "WHERE 1=1";
+  let where = "WHERE u.role = 'user'";
   const params = [];
   if (status) {
     where += " AND o.status = ?";
@@ -135,7 +135,7 @@ export async function getOrderDetail({ request, env, params }) {
     SELECT o.*, u.username, u.email
     FROM orders o
     LEFT JOIN users u ON u.id = o.user_id
-    WHERE o.id = ?
+    WHERE o.id = ? AND u.role = 'user'
   `).bind(params.id).first();
 
   if (!order) {

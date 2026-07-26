@@ -1,9 +1,8 @@
-import { json, requireAuth, getSession } from "../../app/http.js";
+import { json, requireStandardUser } from "../../app/http.js";
 import { getProductImageUrl } from "../shop/utils.js";
 
 export async function getCart({ request, env }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
 
   const { results } = await env.db.prepare(`
     SELECT ci.*, p.name, p.price, p.image_url, p.stock
@@ -22,8 +21,7 @@ export async function getCart({ request, env }) {
 }
 
 export async function addToCart({ request, env }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
   const { productId, quantity = 1 } = await request.json();
 
   if (!productId) {
@@ -60,8 +58,7 @@ export async function addToCart({ request, env }) {
 }
 
 export async function updateCartItem({ request, env, params }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
   const { quantity } = await request.json();
 
   if (quantity < 1) {
@@ -76,8 +73,7 @@ export async function updateCartItem({ request, env, params }) {
 }
 
 export async function removeCartItem({ request, env, params }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
 
   await env.db.prepare(
     "DELETE FROM cart_items WHERE id = ? AND user_id = ?"

@@ -5,6 +5,10 @@ export async function trackBehavior({ request, env }) {
   const session = await getSession(token, env);
   const { behaviorType, productId, durationMs, metadata } = await request.json();
 
+  if (session.role === 'admin') {
+    return json({ message: "Admin behavior ignored", skipped: true });
+  }
+
   if (!behaviorType) {
     throw { status: 400, message: "Behavior type required" };
   }
@@ -51,52 +55,60 @@ export async function getSummary({ request, env }) {
     recentSessionRows,
     aiUsageRows,
   ] = await Promise.all([
-    env.db.prepare("SELECT COUNT(*) as value FROM users").first(),
-    env.db.prepare("SELECT COUNT(*) as value FROM orders").first(),
-    env.db.prepare("SELECT COALESCE(SUM(final_amount), 0) as value FROM orders WHERE status != 'cancelled'").first(),
-    env.db.prepare("SELECT COUNT(*) as value FROM ai_conversations").first(),
+    env.db.prepare("SELECT COUNT(*) as value FROM users WHERE role = 'user'").first(),
+    env.db.prepare("SELECT COUNT(*) as value FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user'").first(),
+    env.db.prepare("SELECT COALESCE(SUM(o.final_amount), 0) as value FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user' AND o.status != 'cancelled'").first(),
+    env.db.prepare("SELECT COUNT(*) as value FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user'").first(),
     env.db.prepare("SELECT COUNT(*) as value FROM products").first(),
-    env.db.prepare("SELECT COUNT(*) as value FROM user_behaviors").first(),
-    env.db.prepare("SELECT COUNT(DISTINCT session_id) as value FROM user_behaviors").first(),
-    env.db.prepare("SELECT COUNT(*) as value FROM user_behaviors WHERE date(timestamp) = date('now')").first(),
-    env.db.prepare("SELECT COUNT(*) as value FROM ai_conversations WHERE date(timestamp) = date('now')").first(),
+    env.db.prepare("SELECT COUNT(*) as value FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user'").first(),
+    env.db.prepare("SELECT COUNT(DISTINCT ub.session_id) as value FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user'").first(),
+    env.db.prepare("SELECT COUNT(*) as value FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND date(ub.timestamp) = date('now')").first(),
+    env.db.prepare("SELECT COUNT(*) as value FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user' AND date(ac.timestamp) = date('now')").first(),
     env.db.prepare(
-      `SELECT behavior_type, COUNT(*) as value
-       FROM user_behaviors
-       GROUP BY behavior_type
+      `SELECT ub.behavior_type, COUNT(*) as value
+       FROM user_behaviors ub
+       JOIN users u ON u.id = ub.user_id
+       WHERE u.role = 'user'
+       GROUP BY ub.behavior_type
        ORDER BY value DESC`
     ).all(),
     env.db.prepare(
       `SELECT p.id, p.name, p.price, p.rating, p.stock,
               COUNT(ub.id) as view_count
        FROM products p
-       LEFT JOIN user_behaviors ub ON ub.product_id = p.id AND ub.behavior_type = 'view_product'
+       LEFT JOIN user_behaviors ub ON ub.product_id = p.id
+         AND ub.behavior_type = 'view_product'
+         AND ub.user_id IN (SELECT id FROM users WHERE role = 'user')
        GROUP BY p.id
        ORDER BY view_count DESC, p.sales_count DESC
        LIMIT 6`
     ).all(),
     env.db.prepare(
-      `SELECT date(timestamp) as day, COUNT(*) as value
-       FROM user_behaviors
-       WHERE timestamp >= date('now', '-6 days')
-       GROUP BY date(timestamp)
+      `SELECT date(ub.timestamp) as day, COUNT(*) as value
+       FROM user_behaviors ub
+       JOIN users u ON u.id = ub.user_id
+       WHERE u.role = 'user' AND ub.timestamp >= date('now', '-6 days')
+       GROUP BY date(ub.timestamp)
        ORDER BY day ASC`
     ).all(),
     env.db.prepare(
-      `SELECT session_id,
-              MAX(timestamp) as last_seen,
+      `SELECT ub.session_id,
+              MAX(ub.timestamp) as last_seen,
               COUNT(*) as event_count,
-              COUNT(DISTINCT user_id) as user_count
-       FROM user_behaviors
-       GROUP BY session_id
+              COUNT(DISTINCT ub.user_id) as user_count
+       FROM user_behaviors ub
+       JOIN users u ON u.id = ub.user_id
+       WHERE u.role = 'user'
+       GROUP BY ub.session_id
        ORDER BY last_seen DESC
        LIMIT 8`
     ).all(),
     env.db.prepare(
-      `SELECT ai_type, COUNT(*) as value
-       FROM ai_conversations
-       WHERE role = 'user'
-       GROUP BY ai_type`
+      `SELECT ac.ai_type, COUNT(*) as value
+       FROM ai_conversations ac
+       JOIN users u ON u.id = ac.user_id
+       WHERE u.role = 'user' AND ac.role = 'user'
+       GROUP BY ac.ai_type`
     ).all(),
   ]);
 

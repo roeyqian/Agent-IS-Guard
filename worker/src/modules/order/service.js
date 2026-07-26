@@ -1,9 +1,8 @@
-import { json, readJsonBody, requireAuth, getSession, createId } from "../../app/http.js";
+import { json, readJsonBody, requireStandardUser, createId } from "../../app/http.js";
 import { getProductImageUrl } from "../shop/utils.js";
 
 export async function createOrder({ request, env }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
   const { items, shippingAddress } = await readJsonBody(request);
 
   if (!items || items.length === 0) {
@@ -72,8 +71,7 @@ export async function createOrder({ request, env }) {
 }
 
 export async function getOrders({ request, env }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
 
   const { results } = await env.db.prepare(`
     SELECT o.id, o.order_no, o.total_amount, o.final_amount, o.status, o.created_at,
@@ -89,8 +87,7 @@ export async function getOrders({ request, env }) {
 }
 
 export async function getOrderById({ request, env, params }) {
-  const token = requireAuth(request);
-  const session = await getSession(token, env);
+  const { session } = await requireStandardUser(request, env);
 
   const order = await env.db.prepare(
     "SELECT * FROM orders WHERE id = ? AND user_id = ?"
