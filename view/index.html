@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en-US">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShopGuard - AI购物守护电商平台</title>
+    <title>ShopGuard</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -17,26 +17,26 @@
     <div id="ai-chat-window" class="ai-chat-window hidden">
         <div class="ai-chat-header">
             <div class="ai-tabs">
-                <button class="ai-tab active" data-type="seller">🤖 小卖</button>
-                <button class="ai-tab" data-type="guardian">🛡️ 小盾</button>
+                <button class="ai-tab active" data-type="seller" id="ai-tab-seller">🤖</button>
+                <button class="ai-tab" data-type="guardian" id="ai-tab-guardian">🛡️</button>
             </div>
             <button id="ai-close-btn">✕</button>
         </div>
         <div class="ai-chat-body" id="ai-messages"></div>
         <form class="ai-chat-footer" id="ai-form">
-            <input type="text" id="ai-input" placeholder="输入消息...">
-            <button id="ai-send-btn" type="submit">发送</button>
+            <input type="text" id="ai-input" placeholder="">
+            <button id="ai-send-btn" type="submit"></button>
         </form>
     </div>
     <div id="cart-drawer" class="cart-drawer hidden">
         <div class="cart-header">
-            <h3>购物车</h3>
+            <h3 id="cart-title"></h3>
             <button id="cart-close-btn">✕</button>
         </div>
         <div class="cart-body" id="cart-items"></div>
         <div class="cart-footer">
-            <div class="cart-total">合计: ¥<span id="cart-total">0</span></div>
-            <button id="cart-checkout-btn" class="btn-primary">去结算</button>
+            <div class="cart-total"><span id="cart-total-label"></span>: <span id="cart-total">¥0</span></div>
+            <button id="cart-checkout-btn" class="btn-primary"></button>
         </div>
     </div>
     <script type="module" src="js/api.js"></script>

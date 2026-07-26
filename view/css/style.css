@@ -442,6 +442,32 @@ header {
   justify-content: flex-end;
 }
 
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.lang-btn {
+  border: 0;
+  min-width: 44px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lang-btn.active {
+  background: #fff;
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
 .nav-btn,
 .btn-secondary,
 .btn-ghost,
