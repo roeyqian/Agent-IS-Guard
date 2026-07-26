@@ -1037,8 +1037,8 @@ function renderAuthPage(mode) {
               </label>
             ` : ""}
             <label class="field">
-              <span>${escapeHtml(t("email"))}</span>
-              <input name="email" type="email" required placeholder="name@example.com" />
+              <span>${escapeHtml(t("username"))}</span>
+              <input name="username" type="text" required minlength="2" placeholder="${escapeHtml(t("usernamePlaceholder"))}" />
             </label>
             <label class="field">
               <span>${escapeHtml(t("password"))}</span>
@@ -1314,7 +1314,7 @@ function renderCartList() {
 async function handleLogin(form) {
   const data = new FormData(form);
   try {
-    const result = await AuthAPI.login(String(data.get("email") || ""), String(data.get("password") || ""));
+    const result = await AuthAPI.login(String(data.get("username") || ""), String(data.get("password") || ""));
     applySession(result);
     await refreshSessionData();
     showToast(t("loginSuccess"));

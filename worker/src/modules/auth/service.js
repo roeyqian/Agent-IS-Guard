@@ -3,16 +3,22 @@ import { json, requireAuth, getSession } from "../../app/http.js";
 export async function register({ request, env }) {
   const { email, password, username } = await request.json();
 
+  const normalizedEmail = String(email || "").trim();
   const normalizedUsername = String(username || "").trim();
   const isAdminAccount = normalizedUsername === "admin";
 
-  if (!email || !password || !normalizedUsername) {
+  if (!normalizedEmail || !password || !normalizedUsername) {
     throw { status: 400, message: "Missing required fields" };
   }
 
-  const existing = await env.db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-  if (existing) {
+  const existingEmail = await env.db.prepare("SELECT id FROM users WHERE email = ?").bind(normalizedEmail).first();
+  if (existingEmail) {
     throw { status: 400, message: "Email already exists" };
+  }
+
+  const existingUsername = await env.db.prepare("SELECT id FROM users WHERE username = ?").bind(normalizedUsername).first();
+  if (existingUsername) {
+    throw { status: 400, message: "Username already exists" };
   }
 
   const userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -22,28 +28,29 @@ export async function register({ request, env }) {
   await env.db.prepare(
     `INSERT INTO users (id, username, email, password_hash, salt, role, created_at)
      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
-  ).bind(userId, normalizedUsername, email, passwordHash, salt, isAdminAccount ? 'admin' : 'user').run();
+  ).bind(userId, normalizedUsername, normalizedEmail, passwordHash, salt, isAdminAccount ? 'admin' : 'user').run();
 
   const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-  const sessionData = { userId, email, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' };
+  const sessionData = { userId, email: normalizedEmail, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' };
   await env.kv.put(`session:${sessionToken}`, JSON.stringify(sessionData), { expirationTtl: 604800 });
 
   return json({
     token: sessionToken,
-    user: { id: userId, email, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' }
+    user: { id: userId, email: normalizedEmail, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' }
   });
 }
 
 export async function login({ request, env }) {
-  const { email, password } = await request.json();
+  const { username, password } = await request.json();
+  const normalizedUsername = String(username || "").trim();
 
-  if (!email || !password) {
-    throw { status: 400, message: "Missing email or password" };
+  if (!normalizedUsername || !password) {
+    throw { status: 400, message: "Missing username or password" };
   }
 
   const user = await env.db.prepare(
-    "SELECT id, username, email, password_hash, salt, role FROM users WHERE email = ?"
-  ).bind(email).first();
+    "SELECT id, username, email, password_hash, salt, role FROM users WHERE username = ?"
+  ).bind(normalizedUsername).first();
 
   if (!user) {
     throw { status: 401, message: "Invalid credentials" };
@@ -53,6 +60,8 @@ export async function login({ request, env }) {
   if (passwordHash !== user.password_hash) {
     throw { status: 401, message: "Invalid credentials" };
   }
+
+  await env.db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").bind(user.id).run();
 
   const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
   const sessionData = { userId: user.id, email: user.email, username: user.username, role: user.role };

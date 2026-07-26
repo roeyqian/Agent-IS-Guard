@@ -86,7 +86,11 @@ If you use a different database name on Cloudflare, update the scripts in `worke
 
 注册时如果用户名填写为 `admin`，系统会自动将该账号标记为管理员。
 
+登录时使用用户名 + 密码。
+
 If you register with the username `admin`, the system will automatically mark that account as an admin.
+
+Log in with username + password.
 
 ## AI 配置 / AI Configuration
 
