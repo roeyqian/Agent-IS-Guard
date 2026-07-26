@@ -69,9 +69,9 @@ npm run dev
 
 ## 数据库初始化 / Database Setup
 
-先创建并绑定 D1 数据库，然后执行迁移与种子数据。当前脚本使用的数据库名是 `shopguard-db`：
+先创建并绑定 D1 数据库，然后执行迁移与种子数据。当前脚本使用的数据库名是 `zero-1-base`：
 
-Create and bind the D1 database, then run migrations and seed data. The current scripts use the database name `shopguard-db`:
+Create and bind the D1 database, then run migrations and seed data. The current scripts use the database name `zero-1-base`:
 
 ```bash
 npm run db:init
