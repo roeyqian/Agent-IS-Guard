@@ -76,6 +76,7 @@ export const ProductAPI = {
     return request(`/products${query ? `?${query}` : ''}`);
   },
   getById: (id) => request(`/products/${id}`),
+  getInsights: (id) => request(`/products/${id}/insights`),
   getCategories: () => request('/categories'),
 };
 
@@ -123,6 +124,7 @@ export const ResearchAPI = {
         ...payload,
       }),
     }),
+  getSummary: () => request('/research/summary'),
 };
 
 export const AdminAPI = {
@@ -133,4 +135,14 @@ export const AdminAPI = {
       body: JSON.stringify(config),
     }),
   getStats: () => request('/admin/stats'),
+  getOrders: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/admin/orders${query ? `?${query}` : ''}`);
+  },
+  getOrderDetail: (orderId) => request(`/admin/orders/${orderId}`),
+  updateOrderStatus: (orderId, payload) =>
+    request(`/admin/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 };

@@ -1,4 +1,4 @@
-import { json, requireAdmin } from "../../app/http.js";
+import { json, createId, readJsonBody, requireAdmin } from "../../app/http.js";
 
 export async function getAiConfig({ request, env }) {
   await requireAdmin(request, env);
@@ -89,3 +89,140 @@ export async function getStats({ request, env }) {
     ]
   });
 }
+
+export async function getOrders({ request, env, url }) {
+  await requireAdmin(request, env);
+
+  const limit = clampInt(url.searchParams.get('limit'), 25, 1, 100);
+  const status = url.searchParams.get('status');
+
+  let where = "WHERE 1=1";
+  const params = [];
+  if (status) {
+    where += " AND o.status = ?";
+    params.push(status);
+  }
+
+  const { results } = await env.db.prepare(`
+    SELECT o.id, o.order_no, o.user_id, o.total_amount, o.final_amount, o.status,
+           o.created_at, o.paid_at, o.shipped_at, o.completed_at, o.cancelled_at,
+           u.username, u.email,
+           COUNT(DISTINCT oi.id) as item_count,
+           COUNT(DISTINCT oe.id) as event_count
+    FROM orders o
+    LEFT JOIN users u ON u.id = o.user_id
+    LEFT JOIN order_items oi ON oi.order_id = o.id
+    LEFT JOIN order_events oe ON oe.order_id = o.id
+    ${where}
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+    LIMIT ?
+  `).bind(...params, limit).all();
+
+  return json({
+    orders: results.map((order) => ({
+      ...order,
+      item_count: Number(order.item_count || 0),
+      event_count: Number(order.event_count || 0),
+    })),
+  });
+}
+
+export async function getOrderDetail({ request, env, params }) {
+  await requireAdmin(request, env);
+
+  const order = await env.db.prepare(`
+    SELECT o.*, u.username, u.email
+    FROM orders o
+    LEFT JOIN users u ON u.id = o.user_id
+    WHERE o.id = ?
+  `).bind(params.id).first();
+
+  if (!order) {
+    throw { status: 404, message: "Order not found" };
+  }
+
+  const [{ results: items }, { results: events }] = await Promise.all([
+    env.db.prepare(
+      "SELECT * FROM order_items WHERE order_id = ? ORDER BY subtotal DESC"
+    ).bind(params.id).all(),
+    env.db.prepare(
+      `SELECT oe.*, u.username AS actor_name
+       FROM order_events oe
+       LEFT JOIN users u ON u.id = oe.actor_user_id
+       WHERE oe.order_id = ?
+       ORDER BY oe.created_at ASC`
+    ).bind(params.id).all(),
+  ]);
+
+  return json({
+    order: {
+      ...order,
+      shippingAddress: parseJson(order.shipping_address_json, {}),
+      items,
+      events: events.map((event) => ({
+        ...event,
+        note: event.note || '',
+      })),
+    },
+  });
+}
+
+export async function updateOrderStatus({ request, env, params }) {
+  const session = await requireAdmin(request, env);
+  const body = await readJsonBody(request);
+  const status = String(body.status || '').trim();
+  const note = String(body.note || '').trim();
+
+  if (!VALID_ORDER_STATUSES.includes(status)) {
+    throw { status: 400, message: "Invalid order status" };
+  }
+
+  const order = await env.db.prepare("SELECT * FROM orders WHERE id = ?").bind(params.id).first();
+  if (!order) {
+    throw { status: 404, message: "Order not found" };
+  }
+
+  const timestampField = STATUS_TIMESTAMPS[status];
+  const timestampSql = timestampField ? `${timestampField} = datetime('now'),` : '';
+
+  await env.db.prepare(`
+    UPDATE orders
+    SET status = ?, ${timestampSql}
+        remark = COALESCE(remark, ?)
+    WHERE id = ?
+  `).bind(status, note || order.remark || '', params.id).run();
+
+  await env.db.prepare(`
+    INSERT INTO order_events (id, order_id, event_type, status, note, actor_user_id, created_at)
+    VALUES (?, ?, 'status_changed', ?, ?, ?, datetime('now'))
+  `).bind(createId("ordevt"), params.id, status, note || `Status changed to ${status}`, session.userId).run();
+
+  return json({
+    message: "Order updated",
+    orderId: params.id,
+    status,
+  });
+}
+
+function clampInt(value, fallback, min, max) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function parseJson(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const VALID_ORDER_STATUSES = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
+const STATUS_TIMESTAMPS = {
+  paid: 'paid_at',
+  shipped: 'shipped_at',
+  completed: 'completed_at',
+  cancelled: 'cancelled_at',
+};

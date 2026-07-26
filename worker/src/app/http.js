@@ -11,6 +11,8 @@ const CORS_HEADERS = {
   "access-control-max-age": "86400",
 };
 
+export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+
 export function createRouter() {
   const routes = [];
 
@@ -50,6 +52,18 @@ export async function handleApi(request, env, url, router) {
   }
 }
 
+export async function readJsonBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
+}
+
+export function createId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
 function compilePattern(pattern) {
   const names = [];
   const source = pattern.split("/").map((segment) => {
@@ -86,8 +100,57 @@ export function requireAuth(request) {
 
 export async function getSession(sessionToken, env) {
   const sessionData = await env.kv.get(`session:${sessionToken}`);
-  if (!sessionData) throw { status: 401, message: "Invalid session" };
-  return JSON.parse(sessionData);
+  if (sessionData) {
+    return JSON.parse(sessionData);
+  }
+
+  const record = await env.db.prepare(
+    `SELECT s.session_id, s.user_id, s.expires_at, u.email, u.username, u.role
+     FROM sessions s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.session_id = ?`
+  ).bind(sessionToken).first();
+
+  if (!record) {
+    throw { status: 401, message: "Invalid session" };
+  }
+
+  if (new Date(record.expires_at).getTime() <= Date.now()) {
+    await revokeSession(sessionToken, env);
+    throw { status: 401, message: "Session expired" };
+  }
+
+  const session = {
+    userId: record.user_id,
+    email: record.email,
+    username: record.username,
+    role: record.role,
+  };
+
+  const ttlSeconds = Math.max(60, Math.floor((new Date(record.expires_at).getTime() - Date.now()) / 1000));
+  await env.kv.put(`session:${sessionToken}`, JSON.stringify(session), { expirationTtl: ttlSeconds });
+  return session;
+}
+
+export async function persistSession(sessionToken, sessionData, env, ttlSeconds = SESSION_TTL_SECONDS) {
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+
+  await Promise.all([
+    env.kv.put(`session:${sessionToken}`, JSON.stringify(sessionData), { expirationTtl: ttlSeconds }),
+    env.db.prepare(
+      `INSERT OR REPLACE INTO sessions (session_id, user_id, expires_at, created_at)
+       VALUES (?, ?, ?, datetime('now'))`
+    ).bind(sessionToken, sessionData.userId, expiresAt).run(),
+  ]);
+
+  return { ...sessionData, expiresAt };
+}
+
+export async function revokeSession(sessionToken, env) {
+  await Promise.all([
+    env.kv.delete(`session:${sessionToken}`),
+    env.db.prepare("DELETE FROM sessions WHERE session_id = ?").bind(sessionToken).run(),
+  ]);
 }
 
 export async function requireAdmin(request, env) {

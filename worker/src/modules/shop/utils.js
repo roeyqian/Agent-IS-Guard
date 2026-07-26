@@ -3,13 +3,13 @@ export function getProductImageUrl(productId) {
 }
 
 export function normalizeProduct(product) {
-  const images = JSON.parse(product.images_json || "[]");
+  const images = parseJson(product.images_json, []);
   return {
     ...product,
     image_url: getProductImageUrl(product.id),
     images,
-    specs: JSON.parse(product.specs_json || "{}"),
-    tags: JSON.parse(product.tags_json || "[]"),
+    specs: parseJson(product.specs_json, {}),
+    tags: parseJson(product.tags_json, []),
   };
 }
 
@@ -28,4 +28,12 @@ export async function getProductImage({ env, params }) {
   return new Response(image.body, {
     headers,
   });
+}
+
+function parseJson(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
 }

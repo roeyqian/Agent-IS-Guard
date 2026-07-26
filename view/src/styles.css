@@ -625,6 +625,14 @@ img {
 .cart-line,
 .order-item,
 .note-row,
+.insight-stat,
+.research-stat,
+.session-row,
+.trend-row,
+.timeline-row,
+.insight-row,
+.related-row,
+.admin-order-detail,
 .toast {
   padding: 12px;
   border: 1px solid var(--line);
@@ -645,7 +653,16 @@ img {
 .order-items,
 .cart-summary,
 .admin-notes,
-.chat-list {
+.chat-list,
+.insight-list,
+.insight-grid,
+.insight-chips,
+.related-list,
+.research-grid,
+.trend-list,
+.session-list,
+.timeline,
+.admin-order-detail {
   display: grid;
   gap: 10px;
 }
@@ -669,6 +686,10 @@ img {
   align-content: center;
   justify-items: center;
   text-align: center;
+}
+
+.empty-state.compact {
+  min-height: 120px;
 }
 
 .page-header {
@@ -756,6 +777,148 @@ img {
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
 }
 
+.research-grid,
+.insight-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.research-stat,
+.insight-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.research-stat strong,
+.insight-stat strong {
+  font-size: 1.15rem;
+}
+
+.insight-chips {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.timeline {
+  margin-top: 12px;
+}
+
+.timeline-head,
+.trend-label,
+.session-row,
+.insight-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timeline-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  background: transparent;
+  border-color: transparent;
+  padding: 6px 0;
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.timeline-copy {
+  min-width: 0;
+}
+
+.timeline-copy span,
+.session-row span,
+.trend-label span,
+.insight-row span,
+.insight-chips span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.trend-list {
+  margin: 12px 0;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: minmax(0, 130px) minmax(0, 1fr);
+  align-items: center;
+}
+
+.trend-bar {
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5ecf4;
+}
+
+.trend-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #ef4444);
+}
+
+.related-row,
+.insight-row {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+}
+
+.related-row span {
+  display: block;
+}
+
+.admin-order-detail {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.compact-order-form .field {
+  gap: 6px;
+}
+
+.detail-metrics.compact {
+  margin-top: 0;
+}
+
+.order-items.compact,
+.timeline.compact {
+  gap: 8px;
+}
+
+.session-list {
+  margin: 12px 0;
+}
+
+.session-row {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.session-row small,
+.timeline-row small {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -774,7 +937,8 @@ img {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   min-width: 0;
   padding: 11px 12px;
@@ -787,6 +951,7 @@ img {
 
 .field input:focus,
 .field textarea:focus,
+.field select:focus,
 .search-bar:focus-within,
 .select-wrap:focus-within {
   border-color: var(--accent);

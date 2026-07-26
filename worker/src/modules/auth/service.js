@@ -1,7 +1,7 @@
-import { json, requireAuth, getSession } from "../../app/http.js";
+import { json, readJsonBody, requireAuth, getSession, persistSession, revokeSession, createId } from "../../app/http.js";
 
 export async function register({ request, env }) {
-  const { email, password, username } = await request.json();
+  const { email, password, username } = await readJsonBody(request);
 
   const normalizedEmail = String(email || "").trim();
   const normalizedUsername = String(username || "").trim();
@@ -21,7 +21,7 @@ export async function register({ request, env }) {
     throw { status: 400, message: "Username already exists" };
   }
 
-  const userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const userId = createId("user");
   const salt = Math.random().toString(36).slice(2);
   const passwordHash = await hashPassword(password, salt);
 
@@ -30,9 +30,9 @@ export async function register({ request, env }) {
      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
   ).bind(userId, normalizedUsername, normalizedEmail, passwordHash, salt, isAdminAccount ? 'admin' : 'user').run();
 
-  const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const sessionToken = createId("sess");
   const sessionData = { userId, email: normalizedEmail, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' };
-  await env.kv.put(`session:${sessionToken}`, JSON.stringify(sessionData), { expirationTtl: 604800 });
+  await persistSession(sessionToken, sessionData, env);
 
   return json({
     token: sessionToken,
@@ -41,7 +41,7 @@ export async function register({ request, env }) {
 }
 
 export async function login({ request, env }) {
-  const { username, password } = await request.json();
+  const { username, password } = await readJsonBody(request);
   const normalizedUsername = String(username || "").trim();
 
   if (!normalizedUsername || !password) {
@@ -63,9 +63,9 @@ export async function login({ request, env }) {
 
   await env.db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").bind(user.id).run();
 
-  const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const sessionToken = createId("sess");
   const sessionData = { userId: user.id, email: user.email, username: user.username, role: user.role };
-  await env.kv.put(`session:${sessionToken}`, JSON.stringify(sessionData), { expirationTtl: 604800 });
+  await persistSession(sessionToken, sessionData, env);
 
   return json({
     token: sessionToken,
@@ -75,7 +75,7 @@ export async function login({ request, env }) {
 
 export async function logout({ request, env }) {
   const token = requireAuth(request);
-  await env.kv.delete(`session:${token}`);
+  await revokeSession(token, env);
   return json({ message: "Logged out successfully" });
 }
 

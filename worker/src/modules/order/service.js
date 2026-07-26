@@ -1,10 +1,10 @@
-import { json, requireAuth, getSession } from "../../app/http.js";
+import { json, readJsonBody, requireAuth, getSession, createId } from "../../app/http.js";
 import { getProductImageUrl } from "../shop/utils.js";
 
 export async function createOrder({ request, env }) {
   const token = requireAuth(request);
   const session = await getSession(token, env);
-  const { items, shippingAddress } = await request.json();
+  const { items, shippingAddress } = await readJsonBody(request);
 
   if (!items || items.length === 0) {
     throw { status: 400, message: "Order must contain at least one item" };
@@ -43,27 +43,30 @@ export async function createOrder({ request, env }) {
     });
   }
 
-  const orderId = `order_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const orderId = createId("order");
   const orderNo = `ORD${Date.now()}`;
+  const statements = [
+    env.db.prepare(`
+      INSERT INTO orders (id, order_no, user_id, total_amount, final_amount, status, shipping_address_json, created_at)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))
+    `).bind(orderId, orderNo, session.userId, totalAmount, totalAmount, JSON.stringify(shippingAddress)),
+    env.db.prepare(`
+      INSERT INTO order_events (id, order_id, event_type, status, note, actor_user_id, created_at)
+      VALUES (?, ?, 'created', 'pending', ?, ?, datetime('now'))
+    `).bind(createId("ordevt"), orderId, 'Order created by customer', session.userId),
+    ...orderItems.flatMap((item) => [
+      env.db.prepare(`
+        INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, subtotal)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(createId("item"), orderId, item.productId, item.productName, item.productImage, item.price, item.quantity, item.subtotal),
+      env.db.prepare(
+        "UPDATE products SET stock = stock - ? WHERE id = ?"
+      ).bind(item.quantity, item.productId),
+    ]),
+    env.db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(session.userId),
+  ];
 
-  await env.db.prepare(`
-    INSERT INTO orders (id, order_no, user_id, total_amount, final_amount, status, shipping_address_json, created_at)
-    VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))
-  `).bind(orderId, orderNo, session.userId, totalAmount, totalAmount, JSON.stringify(shippingAddress)).run();
-
-  for (const item of orderItems) {
-    const itemId = `item_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    await env.db.prepare(`
-      INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, subtotal)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(itemId, orderId, item.productId, item.productName, item.productImage, item.price, item.quantity, item.subtotal).run();
-
-    await env.db.prepare(
-      "UPDATE products SET stock = stock - ? WHERE id = ?"
-    ).bind(item.quantity, item.productId).run();
-  }
-
-  await env.db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(session.userId).run();
+  await env.db.batch(statements);
 
   return json({ orderId, orderNo, totalAmount });
 }
@@ -73,10 +76,13 @@ export async function getOrders({ request, env }) {
   const session = await getSession(token, env);
 
   const { results } = await env.db.prepare(`
-    SELECT id, order_no, total_amount, final_amount, status, created_at
-    FROM orders
-    WHERE user_id = ?
-    ORDER BY created_at DESC
+    SELECT o.id, o.order_no, o.total_amount, o.final_amount, o.status, o.created_at,
+           COUNT(oi.id) as item_count
+    FROM orders o
+    LEFT JOIN order_items oi ON oi.order_id = o.id
+    WHERE o.user_id = ?
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
   `).bind(session.userId).all();
 
   return json({ orders: results });
@@ -98,11 +104,23 @@ export async function getOrderById({ request, env, params }) {
     "SELECT * FROM order_items WHERE order_id = ?"
   ).bind(params.id).all();
 
+  const { results: events } = await env.db.prepare(
+    `SELECT oe.*, u.username AS actor_name
+     FROM order_events oe
+     LEFT JOIN users u ON u.id = oe.actor_user_id
+     WHERE oe.order_id = ?
+     ORDER BY oe.created_at ASC`
+  ).bind(params.id).all();
+
   return json({
     order: {
       ...order,
       shippingAddress: JSON.parse(order.shipping_address_json),
       items,
+      events: events.map((event) => ({
+        ...event,
+        note: event.note || '',
+      })),
     }
   });
 }

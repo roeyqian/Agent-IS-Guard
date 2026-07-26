@@ -1,8 +1,9 @@
-import { getProducts, getProductById, getCategories, getProductImage } from "./service.js";
+import { getProducts, getProductById, getCategories, getProductImage, getProductInsights } from "./service.js";
 
 export default function registerShopRoutes(router) {
   router.add("GET", "/api/products", getProducts);
   router.add("GET", "/api/products/:id", getProductById);
   router.add("GET", "/api/products/:id/image", getProductImage);
+  router.add("GET", "/api/products/:id/insights", getProductInsights);
   router.add("GET", "/api/categories", getCategories);
 }

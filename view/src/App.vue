@@ -288,6 +288,90 @@
                   <strong>{{ item.value }}</strong>
                 </div>
               </div>
+
+              <div class="insight-panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>样本洞察</h2>
+                    <p>{{ productInsightsLoading ? '正在计算研究信号' : '基于行为追踪和对话记录' }}</p>
+                  </div>
+                  <button class="ghost-btn" type="button" @click="loadProductInsights(selectedProduct.id)">
+                    <RefreshCcw :size="16" />
+                    刷新
+                  </button>
+                </div>
+
+                <div v-if="productInsightsLoading" class="empty-state compact">
+                  <strong>加载中...</strong>
+                  <span>正在汇总样本行为。</span>
+                </div>
+
+                <template v-else-if="productInsightSummary">
+                  <div class="insight-grid">
+                    <div class="insight-stat">
+                      <strong>{{ productInsightSummary.views }}</strong>
+                      <span>浏览</span>
+                    </div>
+                    <div class="insight-stat">
+                      <strong>{{ productInsightSummary.addToCart }}</strong>
+                      <span>加购</span>
+                    </div>
+                    <div class="insight-stat">
+                      <strong>{{ productInsightSummary.orders }}</strong>
+                      <span>下单</span>
+                    </div>
+                    <div class="insight-stat">
+                      <strong>{{ formatMoney(productInsightSummary.revenue) }}</strong>
+                      <span>贡献</span>
+                    </div>
+                    <div class="insight-stat">
+                      <strong>{{ productInsightSummary.recentSessions }}</strong>
+                      <span>会话</span>
+                    </div>
+                    <div class="insight-stat">
+                      <strong>{{ productInsightSummary.conversionRate }}%</strong>
+                      <span>转化</span>
+                    </div>
+                  </div>
+
+                  <div class="insight-chips">
+                    <span v-for="item in productInsightSummary.aiUsage" :key="item.aiType" class="status pending">
+                      {{ item.aiType === 'seller' ? '促销 AI' : '守护 AI' }} {{ item.value }}
+                    </span>
+                  </div>
+
+                  <div v-if="productInsightRecentBehaviors.length" class="timeline compact">
+                    <div class="timeline-head">
+                      <strong>最近行为</strong>
+                      <span>{{ productInsightRecentBehaviors.length }} 条</span>
+                    </div>
+                    <div v-for="item in productInsightRecentBehaviors" :key="`${item.timestamp}-${item.session_id}`" class="timeline-row">
+                      <div class="timeline-dot"></div>
+                      <div class="timeline-copy">
+                        <strong>{{ item.behavior_type }}</strong>
+                        <span>{{ item.username || item.session_id }}</span>
+                      </div>
+                      <small>{{ item.timestamp }}</small>
+                    </div>
+                  </div>
+
+                  <div v-if="productInsightRelated.length" class="related-list">
+                    <button
+                      v-for="item in productInsightRelated"
+                      :key="item.id"
+                      class="related-row"
+                      type="button"
+                      @click="pickProduct(item.id)"
+                    >
+                      <div>
+                        <strong>{{ item.name }}</strong>
+                        <span>{{ formatMoney(item.price) }}</span>
+                      </div>
+                      <ChevronRight :size="16" />
+                    </button>
+                  </div>
+                </template>
+              </div>
             </template>
 
             <div v-else class="empty-state tall">
@@ -327,7 +411,7 @@
                 v-for="order in orders"
                 :key="order.id"
                 class="order-row"
-                :class="{ active: selectedOrder?.id === order.id }"
+                :class="{ active: selectedOrderView?.id === order.id }"
                 type="button"
                 @click="pickOrder(order.id)"
               >
@@ -344,11 +428,11 @@
           </section>
 
           <aside class="panel detail-panel">
-            <template v-if="selectedOrder">
+            <template v-if="selectedOrderView">
               <div class="panel-head">
                 <div>
-                  <h2>{{ selectedOrder.order_no }}</h2>
-                  <p>{{ statusLabel(selectedOrder.status) }}</p>
+                  <h2>{{ selectedOrderView.order_no }}</h2>
+                  <p>{{ statusLabel(selectedOrderView.status) }}</p>
                 </div>
                 <button class="ghost-btn" type="button" @click="openCart">
                   <ShoppingCart :size="16" />
@@ -359,33 +443,48 @@
               <div class="detail-metrics">
                 <div>
                   <label>时间</label>
-                  <strong>{{ selectedOrder.created_at || '-' }}</strong>
+                  <strong>{{ selectedOrderView.created_at || '-' }}</strong>
                 </div>
                 <div>
                   <label>金额</label>
-                  <strong>{{ formatMoney(selectedOrder.final_amount || selectedOrder.total_amount) }}</strong>
+                  <strong>{{ formatMoney(selectedOrderView.final_amount || selectedOrderView.total_amount) }}</strong>
                 </div>
                 <div>
                   <label>收货人</label>
-                  <strong>{{ selectedOrder.shippingAddress?.name || '-' }}</strong>
+                  <strong>{{ selectedOrderView.shippingAddress?.name || '-' }}</strong>
                 </div>
                 <div>
                   <label>电话</label>
-                  <strong>{{ selectedOrder.shippingAddress?.phone || '-' }}</strong>
+                  <strong>{{ selectedOrderView.shippingAddress?.phone || '-' }}</strong>
                 </div>
               </div>
 
               <div class="address-box">
-                {{ selectedOrder.shippingAddress?.address || '-' }}
+                {{ selectedOrderView.shippingAddress?.address || '-' }}
               </div>
 
               <div class="order-items">
-                <div v-for="item in selectedOrder.items || []" :key="item.id || item.productId" class="order-item">
+                <div v-for="item in selectedOrderView.items || []" :key="item.id || item.productId" class="order-item">
                   <div>
                     <strong>{{ item.name || item.product_name || item.productId }}</strong>
                     <span>数量 x {{ item.quantity || 1 }}</span>
                   </div>
                   <strong>{{ formatMoney((item.price || 0) * (item.quantity || 1)) }}</strong>
+                </div>
+              </div>
+
+              <div v-if="selectedOrderView.events?.length" class="timeline">
+                <div class="timeline-head">
+                  <strong>状态轨迹</strong>
+                  <span>{{ selectedOrderView.events.length }} 条记录</span>
+                </div>
+                <div v-for="event in selectedOrderView.events" :key="event.id" class="timeline-row">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-copy">
+                    <strong>{{ statusLabel(event.status || event.event_type) }}</strong>
+                    <span>{{ event.note || event.event_type }}</span>
+                  </div>
+                  <small>{{ event.created_at }}</small>
                 </div>
               </div>
             </template>
@@ -505,6 +604,186 @@
                   <BarChart3 :size="16" />
                   <span>{{ item.key }}</span>
                   <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div class="content-grid admin-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>研究摘要</h2>
+                  <p>过去 7 天的行为和对话信号。</p>
+                </div>
+              </div>
+
+              <div class="research-grid">
+                <div class="research-stat">
+                  <strong>{{ researchTotals.todayBehaviors ?? 0 }}</strong>
+                  <span>今日行为</span>
+                </div>
+                <div class="research-stat">
+                  <strong>{{ researchTotals.todayConversations ?? 0 }}</strong>
+                  <span>今日对话</span>
+                </div>
+                <div class="research-stat">
+                  <strong>{{ researchTotals.sessions ?? 0 }}</strong>
+                  <span>会话数</span>
+                </div>
+                <div class="research-stat">
+                  <strong>{{ formatMoney(researchTotals.revenue ?? 0) }}</strong>
+                  <span>累计收入</span>
+                </div>
+              </div>
+
+              <div v-if="researchDailyBehavior.length" class="trend-list">
+                <div v-for="item in researchDailyBehavior" :key="item.day" class="trend-row">
+                  <div class="trend-label">
+                    <strong>{{ item.day }}</strong>
+                    <span>{{ item.value }} 次行为</span>
+                  </div>
+                  <div class="trend-bar">
+                    <i :style="{ width: `${Math.min(100, item.value * 8)}%` }"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="researchTopProducts.length" class="insight-list">
+                <div v-for="item in researchTopProducts" :key="item.id" class="insight-row">
+                  <div>
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ formatMoney(item.price) }} · {{ item.view_count }} 次浏览</span>
+                  </div>
+                  <button class="link-btn" type="button" @click="pickProduct(item.id)">
+                    查看
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="researchRecentSessions.length" class="session-list">
+                <div v-for="item in researchRecentSessions" :key="item.session_id" class="session-row">
+                  <div>
+                    <strong>{{ item.session_id }}</strong>
+                    <span>{{ item.event_count }} 条事件 · {{ item.user_count }} 名用户</span>
+                  </div>
+                  <small>{{ item.last_seen }}</small>
+                </div>
+              </div>
+
+              <div v-if="researchAiUsage.length" class="insight-chips">
+                <span v-for="item in researchAiUsage" :key="item.aiType" class="status pending">
+                  {{ item.aiType === 'seller' ? '促销 AI' : '守护 AI' }} {{ item.value }}
+                </span>
+              </div>
+            </section>
+
+            <aside class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>订单管理</h2>
+                  <p>查看最近订单并调整状态。</p>
+                </div>
+                <button class="ghost-btn" type="button" @click="loadAdmin">
+                  <RefreshCcw :size="16" />
+                  刷新
+                </button>
+              </div>
+
+              <div v-if="adminOrders.length" class="order-list compact">
+                <button
+                  v-for="order in adminOrders"
+                  :key="order.id"
+                  class="order-row"
+                  :class="{ active: selectedAdminOrderId === order.id }"
+                  type="button"
+                  @click="pickAdminOrder(order.id)"
+                >
+                  <div>
+                    <strong>{{ order.order_no }}</strong>
+                    <span>{{ order.username || order.email || order.user_id }}</span>
+                  </div>
+                  <div class="order-row-side">
+                    <span class="status" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span>
+                    <strong>{{ formatMoney(order.final_amount || order.total_amount) }}</strong>
+                  </div>
+                </button>
+              </div>
+
+              <div v-else class="empty-state compact">
+                <strong>暂无订单</strong>
+                <span>等到有新的提交记录后，这里会出现。</span>
+              </div>
+
+              <div v-if="adminOrderDetailView" class="admin-order-detail">
+                <div class="detail-metrics compact">
+                  <div>
+                    <label>买家</label>
+                    <strong>{{ adminOrderDetailView.username || adminOrderDetailView.email || '-' }}</strong>
+                  </div>
+                  <div>
+                    <label>商品</label>
+                    <strong>{{ adminOrderDetailView.items?.length || 0 }}</strong>
+                  </div>
+                  <div>
+                    <label>金额</label>
+                    <strong>{{ formatMoney(adminOrderDetailView.final_amount || adminOrderDetailView.total_amount) }}</strong>
+                  </div>
+                  <div>
+                    <label>状态</label>
+                    <strong>{{ statusLabel(adminOrderDetailView.status) }}</strong>
+                  </div>
+                </div>
+
+                <div class="address-box">
+                  {{ adminOrderDetailView.shippingAddress?.address || '-' }}
+                </div>
+
+                <div class="order-items compact">
+                  <div v-for="item in adminOrderDetailView.items || []" :key="item.id" class="order-item">
+                    <div>
+                      <strong>{{ item.product_name }}</strong>
+                      <span>数量 x {{ item.quantity }}</span>
+                    </div>
+                    <strong>{{ formatMoney(item.subtotal) }}</strong>
+                  </div>
+                </div>
+
+                <div class="form-grid compact-order-form">
+                  <label class="field full">
+                    <span>状态</span>
+                    <select v-model="adminOrderForm.status">
+                      <option v-for="item in orderStatusOptions" :key="item.value" :value="item.value">
+                        {{ item.label }}
+                      </option>
+                    </select>
+                  </label>
+                  <label class="field full">
+                    <span>备注</span>
+                    <textarea v-model="adminOrderForm.note" rows="3"></textarea>
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button class="primary-btn" type="button" @click="saveAdminOrderStatus">
+                    <Settings2 :size="16" />
+                    保存状态
+                  </button>
+                </div>
+
+                <div v-if="adminOrderDetailView.events?.length" class="timeline compact">
+                  <div class="timeline-head">
+                    <strong>订单事件</strong>
+                    <span>{{ adminOrderDetailView.events.length }} 条记录</span>
+                  </div>
+                  <div v-for="event in adminOrderDetailView.events" :key="event.id" class="timeline-row">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-copy">
+                      <strong>{{ event.status || event.event_type }}</strong>
+                      <span>{{ event.note || event.event_type }}</span>
+                    </div>
+                    <small>{{ event.created_at }}</small>
+                  </div>
                 </div>
               </div>
             </aside>
@@ -832,10 +1111,19 @@ const cart = ref([]);
 const orders = ref([]);
 const selectedProductId = ref('');
 const selectedOrderId = ref('');
+const selectedOrderDetail = ref(null);
+const selectedAdminOrderId = ref('');
+const selectedAdminOrderDetail = ref(null);
+const productInsights = ref(null);
+const productInsightsLoading = ref(false);
+const researchSummary = ref(null);
+const adminOrders = ref([]);
 const loading = reactive({
   products: true,
   orders: false,
   admin: false,
+  productInsights: false,
+  adminOrderDetail: false,
 });
 
 const filters = reactive({
@@ -873,6 +1161,10 @@ const adminForm = reactive({
   seller_ai_enabled: true,
   guardian_ai_enabled: true,
 });
+const adminOrderForm = reactive({
+  status: 'pending',
+  note: '',
+});
 
 const checkoutForm = reactive({
   name: '',
@@ -889,6 +1181,14 @@ const sortOptions = [
   { value: 'price_desc', label: '价格 ↓' },
   { value: 'rating', label: '评分' },
   { value: 'newest', label: '最新' },
+];
+
+const orderStatusOptions = [
+  { value: 'pending', label: '待支付' },
+  { value: 'paid', label: '已支付' },
+  { value: 'shipped', label: '已发货' },
+  { value: 'completed', label: '已完成' },
+  { value: 'cancelled', label: '已取消' },
 ];
 
 watch(
@@ -929,11 +1229,41 @@ watch(
 );
 
 watch(
+  () => selectedProductId.value,
+  async (next) => {
+    if (!next) {
+      productInsights.value = null;
+      return;
+    }
+    await loadProductInsights(next);
+  },
+  { immediate: true },
+);
+
+watch(
   () => selectedOrderId.value,
-  () => {
+  async (next) => {
     if (!selectedOrderId.value && orders.value.length) {
       selectedOrderId.value = orders.value[0].id;
+      return;
     }
+    if (next) {
+      selectedOrderDetail.value = null;
+      await loadOrderDetail(next);
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => selectedAdminOrderId.value,
+  async (next) => {
+    if (!next) {
+      selectedAdminOrderDetail.value = null;
+      return;
+    }
+    selectedAdminOrderDetail.value = null;
+    await loadAdminOrderDetail(next);
   },
   { immediate: true },
 );
@@ -1002,6 +1332,8 @@ const selectedOrder = computed(() => {
   return orders.value.find((item) => item.id === selectedOrderId.value) || orders.value[0] || null;
 });
 
+const selectedOrderView = computed(() => selectedOrderDetail.value || selectedOrder.value);
+
 const aiContextLabel = computed(() => {
   const product = products.value.find((item) => item.id === aiProductId.value) || selectedProduct.value;
   return product ? `当前样本：${product.name}` : '当前样本：未选择';
@@ -1017,6 +1349,15 @@ const adminStatCards = computed(() => [
   { label: '对话', value: adminStats.value?.total_conversations ?? 0 },
   { label: '行为', value: adminStats.value?.total_behaviors ?? 0 },
 ]);
+const productInsightSummary = computed(() => productInsights.value?.summary || null);
+const productInsightRecentBehaviors = computed(() => productInsights.value?.recentBehaviors || []);
+const productInsightRelated = computed(() => productInsights.value?.relatedProducts || []);
+const researchTotals = computed(() => researchSummary.value?.totals || {});
+const researchTopProducts = computed(() => researchSummary.value?.topProducts || []);
+const researchDailyBehavior = computed(() => researchSummary.value?.dailyBehavior || []);
+const researchRecentSessions = computed(() => researchSummary.value?.recentSessions || []);
+const researchAiUsage = computed(() => researchSummary.value?.aiUsage || []);
+const adminOrderDetailView = computed(() => selectedAdminOrderDetail.value || null);
 
 onMounted(async () => {
   window.addEventListener('hashchange', syncRoute);
@@ -1091,6 +1432,10 @@ function pickOrder(id) {
   selectedOrderId.value = id;
 }
 
+function pickAdminOrder(id) {
+  selectedAdminOrderId.value = id;
+}
+
 function openCart() {
   if (!ensureAuth()) return;
   cartOpen.value = true;
@@ -1098,6 +1443,12 @@ function openCart() {
 
 function closeCart() {
   cartOpen.value = false;
+}
+
+function openCheckout() {
+  if (!ensureAuth()) return;
+  closeCart();
+  go('checkout');
 }
 
 function openAuth(mode = 'login') {
@@ -1227,6 +1578,25 @@ async function loadProducts() {
   }
 }
 
+async function loadProductInsights(productId) {
+  if (!productId) {
+    productInsights.value = null;
+    return;
+  }
+
+  productInsightsLoading.value = true;
+  try {
+    const result = await ProductAPI.getInsights(productId);
+    productInsights.value = result;
+  } catch (error) {
+    if (error.status !== 401) {
+      toast(error.message || '加载样本洞察失败', 'error');
+    }
+  } finally {
+    productInsightsLoading.value = false;
+  }
+}
+
 async function loadCart() {
   if (!token.value) {
     cart.value = [];
@@ -1269,6 +1639,25 @@ async function loadOrders() {
   }
 }
 
+async function loadOrderDetail(orderId) {
+  if (!orderId || !token.value) {
+    selectedOrderDetail.value = null;
+    return;
+  }
+
+  try {
+    const result = await OrderAPI.getById(orderId);
+    selectedOrderDetail.value = result.order || null;
+  } catch (error) {
+    selectedOrderDetail.value = null;
+    if (error.status === 401) {
+      openAuth('login');
+    } else {
+      toast(error.message || '加载记录详情失败', 'error');
+    }
+  }
+}
+
 async function loadAdmin() {
   if (!ensureAuth()) return;
   if (!isAdminUser.value) {
@@ -1277,15 +1666,30 @@ async function loadAdmin() {
   }
   loading.admin = true;
   try {
-    const [stats, config] = await Promise.all([AdminAPI.getStats(), AdminAPI.getAiConfig()]);
+    const [stats, config, summary, ordersData] = await Promise.all([
+      AdminAPI.getStats(),
+      AdminAPI.getAiConfig(),
+      ResearchAPI.getSummary(),
+      AdminAPI.getOrders({ limit: 12 }),
+    ]);
     adminStats.value = stats;
     adminConfig.value = config;
+    researchSummary.value = summary;
+    adminOrders.value = ordersData.orders || [];
     adminForm.deepseek_base_url = config.deepseek_base_url || 'https://api.deepseek.com';
     adminForm.deepseek_model = config.deepseek_model || 'deepseek-chat';
     adminForm.seller_ai_enabled = Boolean(config.seller_ai_enabled);
     adminForm.guardian_ai_enabled = Boolean(config.guardian_ai_enabled);
     adminForm.deepseek_api_key = '';
-    } catch (error) {
+    if (!adminOrders.value.length) {
+      selectedAdminOrderId.value = '';
+      selectedAdminOrderDetail.value = null;
+    } else if (!selectedAdminOrderId.value) {
+      selectedAdminOrderId.value = adminOrders.value[0].id;
+    } else if (selectedAdminOrderId.value) {
+      await loadAdminOrderDetail(selectedAdminOrderId.value);
+    }
+  } catch (error) {
     if (error.status === 401) {
       openAuth('login');
     } else {
@@ -1293,6 +1697,48 @@ async function loadAdmin() {
     }
   } finally {
     loading.admin = false;
+  }
+}
+
+async function loadAdminOrderDetail(orderId) {
+  if (!orderId || !token.value) {
+    selectedAdminOrderDetail.value = null;
+    return;
+  }
+
+  loading.adminOrderDetail = true;
+  try {
+    const result = await AdminAPI.getOrderDetail(orderId);
+    selectedAdminOrderDetail.value = result.order || null;
+    adminOrderForm.status = selectedAdminOrderDetail.value?.status || 'pending';
+    adminOrderForm.note = '';
+  } catch (error) {
+    selectedAdminOrderDetail.value = null;
+    if (error.status === 401) {
+      openAuth('login');
+    } else {
+      toast(error.message || '加载管理员订单详情失败', 'error');
+    }
+  } finally {
+    loading.adminOrderDetail = false;
+  }
+}
+
+async function saveAdminOrderStatus() {
+  if (!selectedAdminOrderId.value) return;
+  try {
+    await AdminAPI.updateOrderStatus(selectedAdminOrderId.value, {
+      status: adminOrderForm.status,
+      note: adminOrderForm.note,
+    });
+    toast('订单状态已更新');
+    await Promise.all([loadAdmin(), loadAdminOrderDetail(selectedAdminOrderId.value)]);
+  } catch (error) {
+    if (error.status === 401) {
+      openAuth('login');
+    } else {
+      toast(error.message || '更新订单状态失败', 'error');
+    }
   }
 }
 
@@ -1506,6 +1952,15 @@ async function logout() {
   TokenManager.clear();
   cart.value = [];
   orders.value = [];
+  selectedOrderId.value = '';
+  selectedOrderDetail.value = null;
+  selectedAdminOrderId.value = '';
+  selectedAdminOrderDetail.value = null;
+  productInsights.value = null;
+  researchSummary.value = null;
+  adminOrders.value = [];
+  adminOrderForm.status = 'pending';
+  adminOrderForm.note = '';
   adminStats.value = null;
   adminConfig.value = null;
   closeCart();
