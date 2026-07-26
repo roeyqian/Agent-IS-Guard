@@ -945,7 +945,7 @@ async function renderProductPage(id) {
     const localized = localizeProduct(product);
     state.activeProduct = product;
     await track("view_product", product.id, { source: "detail" });
-    const image = product.images?.[0] || product.image_url || "https://via.placeholder.com/600";
+    const image = product.image_url || product.images?.[0] || "https://via.placeholder.com/600";
     const specs = product.specs && typeof product.specs === "object" ? Object.entries(product.specs) : [];
     const tags = Array.isArray(product.tags) ? product.tags : [];
 

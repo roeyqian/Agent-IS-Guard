@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "build:view": "npm --prefix ../view run build",
+    "deploy": "npm run build:view && wrangler deploy",
     "db:init": "wrangler d1 execute zero-1-base --file=src/migrations/0001_init.sql --remote",
     "db:seed": "wrangler d1 execute zero-1-base --file=src/migrations/0002_seed.sql --remote"
   },

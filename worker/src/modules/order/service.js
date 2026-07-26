@@ -1,4 +1,5 @@
 import { json, requireAuth, getSession } from "../../app/http.js";
+import { getProductImageUrl } from "../shop/utils.js";
 
 export async function createOrder({ request, env }) {
   const token = requireAuth(request);
@@ -35,7 +36,7 @@ export async function createOrder({ request, env }) {
     orderItems.push({
       productId: product.id,
       productName: product.name,
-      productImage: product.image_url,
+      productImage: getProductImageUrl(product.id),
       price: product.price,
       quantity: item.quantity,
       subtotal,

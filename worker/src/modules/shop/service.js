@@ -1,4 +1,5 @@
 import { json } from "../../app/http.js";
+import { getProductImage, normalizeProduct } from "./utils.js";
 
 export async function getProducts({ request, env, url }) {
   const category = url.searchParams.get('category');
@@ -18,12 +19,7 @@ export async function getProducts({ request, env, url }) {
 
   const { results } = await env.db.prepare(query).bind(...params).all();
 
-  const products = results.map(p => ({
-    ...p,
-    images: JSON.parse(p.images_json || '[]'),
-    specs: JSON.parse(p.specs_json || '{}'),
-    tags: JSON.parse(p.tags_json || '[]'),
-  }));
+  const products = results.map(normalizeProduct);
 
   return json({ products, total: results.length });
 }
@@ -37,12 +33,7 @@ export async function getProductById({ env, params }) {
     throw { status: 404, message: "Product not found" };
   }
 
-  const productDetail = {
-    ...product,
-    images: JSON.parse(product.images_json || '[]'),
-    specs: JSON.parse(product.specs_json || '{}'),
-    tags: JSON.parse(product.tags_json || '[]'),
-  };
+  const productDetail = normalizeProduct(product);
 
   return json({ product: productDetail });
 }
@@ -54,3 +45,5 @@ export async function getCategories({ env }) {
 
   return json({ categories: results });
 }
+
+export { getProductImage };

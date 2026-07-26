@@ -1,4 +1,5 @@
 import { json, requireAuth, getSession } from "../../app/http.js";
+import { getProductImageUrl } from "../shop/utils.js";
 
 export async function getCart({ request, env }) {
   const token = requireAuth(request);
@@ -12,7 +13,12 @@ export async function getCart({ request, env }) {
     ORDER BY ci.added_at DESC
   `).bind(session.userId).all();
 
-  return json({ items: results });
+  const items = results.map((item) => ({
+    ...item,
+    image_url: getProductImageUrl(item.product_id),
+  }));
+
+  return json({ items });
 }
 
 export async function addToCart({ request, env }) {

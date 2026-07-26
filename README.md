@@ -25,12 +25,12 @@ ShopGuard is an AI-powered e-commerce platform built on Cloudflare Workers and D
 - Cloudflare Workers
 - Cloudflare D1
 - Cloudflare KV
-- 原生 HTML / CSS / JavaScript
+- Vue.js + Vite
 
 - Cloudflare Workers
 - Cloudflare D1
 - Cloudflare KV
-- Vanilla HTML / CSS / JavaScript
+- Vue.js + Vite
 
 ## 项目结构 / Project Structure
 
@@ -63,9 +63,25 @@ Start the local dev server:
 npm run dev
 ```
 
-`wrangler dev` 会同时提供 API 和静态页面。
+`wrangler dev` 会同时提供 API 和已构建的静态页面。
+
+前端构建命令在 `view/` 目录：
+
+```bash
+cd view
+npm install
+npm run build
+```
 
 `wrangler dev` serves both the API and the static frontend.
+
+部署前先构建前端，再在 `worker/` 目录执行：
+
+```bash
+npm run deploy
+```
+
+脚本会先构建 `view/`，然后执行 `wrangler deploy`。
 
 ## 数据库初始化 / Database Setup
 
