@@ -5,13 +5,13 @@
         <span class="brand-mark">SG</span>
         <span class="brand-copy">
           <strong>ShopGuard</strong>
-          <small>AI 电商平台</small>
+          <small>消费决策研究平台</small>
         </span>
       </div>
 
       <form class="search-bar" @submit.prevent="applySearch">
         <Search class="search-icon" :size="16" />
-        <input v-model="filters.q" type="search" placeholder="搜索商品、品牌、关键词" />
+        <input v-model="filters.q" type="search" placeholder="搜索样本、品牌、关键词" />
         <button class="icon-action" type="submit">
           <ArrowRight :size="16" />
         </button>
@@ -20,19 +20,19 @@
       <nav class="nav-actions">
         <button class="nav-chip" type="button" @click="go('products')">
           <Package2 :size="16" />
-          商品
+          样本
         </button>
         <button class="nav-chip" type="button" @click="go('orders')">
           <Clock3 :size="16" />
-          订单
+          记录
         </button>
         <button class="nav-chip" type="button" @click="go('admin')">
           <Settings2 :size="16" />
-          管理
+          研究
         </button>
         <button class="nav-chip cart-chip" type="button" @click="openCart">
           <ShoppingCart :size="16" />
-          购物车
+          待购
           <span class="badge">{{ cartCount }}</span>
         </button>
         <button v-if="user" class="nav-chip" type="button" @click="logout">
@@ -50,31 +50,31 @@
       <section v-if="page === 'products'" class="page-band">
         <div class="hero">
           <div class="hero-copy">
-            <p class="eyebrow">ShopGuard 商品中心</p>
-            <h1>浏览、对比、下单，一站式完成</h1>
+            <p class="eyebrow">ShopGuard 决策研究台</p>
+            <h1>观察 AI 如何影响购买决定</h1>
             <p class="hero-text">
-              商品筛选、购物车、订单、AI 助手和后台配置都在一个页面里。
+              在同一界面追踪样本浏览、AI 对话、待购行为与提交记录，研究冲动消费的触发点和干预效果。
             </p>
 
             <div class="hero-actions">
               <button class="primary-btn" type="button" @click="go('products')">
                 <Search :size="16" />
-                开始浏览
+                开始观察
               </button>
               <button class="secondary-btn" type="button" @click="openAi('guardian')">
                 <ShieldCheck :size="16" />
-                打开守护助手
+                打开守护 AI
               </button>
               <button class="secondary-btn" type="button" @click="go('orders')">
                 <Truck :size="16" />
-                查看订单
+                查看记录
               </button>
             </div>
 
             <div class="hero-metrics">
               <div class="metric">
                 <strong>{{ products.length }}</strong>
-                <span>商品</span>
+                <span>样本</span>
               </div>
               <div class="metric">
                 <strong>{{ categories.length }}</strong>
@@ -82,11 +82,11 @@
               </div>
               <div class="metric">
                 <strong>{{ cartCount }}</strong>
-                <span>购物车</span>
+                <span>待购</span>
               </div>
               <div class="metric">
                 <strong>{{ orders.length }}</strong>
-                <span>订单</span>
+                <span>记录</span>
               </div>
             </div>
           </div>
@@ -100,10 +100,10 @@
               />
               <div v-else class="image-fallback">
                 <Sparkles :size="28" />
-                <span>精选商品</span>
+                <span>研究样本</span>
               </div>
               <div class="feature-overlay">
-                <strong>{{ heroProduct?.name || 'ShopGuard' }}</strong>
+                <strong>{{ heroProduct?.name || 'ShopGuard Research' }}</strong>
                 <span>{{ heroProduct ? formatMoney(heroProduct.price) : '¥0' }}</span>
               </div>
             </div>
@@ -132,7 +132,7 @@
           <section class="panel catalog-panel">
             <div class="panel-head">
               <div>
-                <h2>商品列表</h2>
+                <h2>样本列表</h2>
                 <p>{{ filteredProducts.length }} 个结果</p>
               </div>
               <button class="ghost-btn" type="button" @click="resetFilters">
@@ -167,12 +167,12 @@
             </div>
 
             <div v-if="loading.products" class="empty-state">
-              <strong>正在加载商品...</strong>
+              <strong>正在加载样本...</strong>
               <span>请稍等片刻。</span>
             </div>
 
             <div v-else-if="!filteredProducts.length" class="empty-state">
-              <strong>没有找到匹配的商品</strong>
+              <strong>没有找到匹配的样本</strong>
               <span>换个关键词或分类再试试。</span>
             </div>
 
@@ -221,7 +221,7 @@
                 </div>
                 <button class="ghost-btn" type="button" @click="openAi('seller', selectedProduct)">
                   <MessageSquareMore :size="16" />
-                  问助手
+                  问促销 AI
                 </button>
               </div>
 
@@ -270,15 +270,15 @@
               <div class="detail-actions">
                 <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
                   <ShoppingCart :size="16" />
-                  加入购物车
+                  加入待购清单
                 </button>
                 <button class="secondary-btn" type="button" @click="openAi('guardian', selectedProduct)">
                   <ShieldCheck :size="16" />
-                  守护助手
+                  守护建议
                 </button>
                 <button class="secondary-btn" type="button" @click="setPage('checkout')">
                   <CreditCard :size="16" />
-                  去结算
+                  进入决策
                 </button>
               </div>
 
@@ -291,7 +291,7 @@
             </template>
 
             <div v-else class="empty-state tall">
-              <strong>请选择一个商品</strong>
+              <strong>请选择一个样本</strong>
               <span>左侧列表里任意点一个就行。</span>
             </div>
           </aside>
@@ -301,8 +301,8 @@
       <section v-else-if="page === 'orders'" class="page-band">
         <div class="panel page-header">
           <div>
-            <h1>订单列表</h1>
-            <p>查看历史订单和配送信息。</p>
+            <h1>决策记录</h1>
+            <p>查看历史下单、交互与行为摘要。</p>
           </div>
           <button class="ghost-btn" type="button" @click="loadOrders">
             <RefreshCcw :size="16" />
@@ -313,13 +313,13 @@
         <div class="content-grid">
           <section class="panel list-panel">
             <div v-if="loading.orders" class="empty-state">
-              <strong>正在加载订单...</strong>
+              <strong>正在加载记录...</strong>
               <span>请稍等片刻。</span>
             </div>
 
             <div v-else-if="!orders.length" class="empty-state">
-              <strong>暂无订单</strong>
-              <span>完成一次下单后会出现在这里。</span>
+              <strong>暂无记录</strong>
+              <span>完成一次决策后会出现在这里。</span>
             </div>
 
             <div v-else class="order-list">
@@ -352,7 +352,7 @@
                 </div>
                 <button class="ghost-btn" type="button" @click="openCart">
                   <ShoppingCart :size="16" />
-                  打开购物车
+                  打开待购清单
                 </button>
               </div>
 
@@ -391,8 +391,8 @@
             </template>
 
             <div v-else class="empty-state tall">
-              <strong>选一笔订单</strong>
-              <span>右侧会显示详细收货和商品清单。</span>
+              <strong>选一条记录</strong>
+              <span>右侧会显示详细收货和样本清单。</span>
             </div>
           </aside>
         </div>
@@ -401,8 +401,8 @@
       <section v-else-if="page === 'admin'" class="page-band">
         <div class="panel page-header">
           <div>
-            <h1>管理后台</h1>
-            <p>AI 配置与站点统计。</p>
+            <h1>研究后台</h1>
+            <p>AI 配置、行为统计与研究摘要。</p>
           </div>
           <button class="ghost-btn" type="button" @click="loadAdmin">
             <RefreshCcw :size="16" />
@@ -412,7 +412,7 @@
 
         <div v-if="!isAdminUser" class="panel empty-panel">
           <strong>需要管理员账号</strong>
-          <span>登录后才能查看统计和配置。</span>
+          <span>登录后才能查看研究统计和配置。</span>
           <button class="primary-btn" type="button" @click="openAuth('login')">
             <LogIn :size="16" />
             去登录
@@ -432,7 +432,7 @@
               <div class="panel-head">
                 <div>
                   <h2>AI 配置</h2>
-                  <p>保存 DeepSeek Key 和模型参数。</p>
+                  <p>保存促销型 AI 和守护 AI 的参数。</p>
                 </div>
               </div>
 
@@ -463,12 +463,12 @@
 
                 <label class="check-row">
                   <input v-model="adminForm.seller_ai_enabled" type="checkbox" />
-                  <span>启用小卖</span>
+                  <span>启用促销型 AI</span>
                 </label>
 
                 <label class="check-row">
                   <input v-model="adminForm.guardian_ai_enabled" type="checkbox" />
-                  <span>启用小盾</span>
+                  <span>启用守护 AI</span>
                 </label>
 
                 <div class="form-actions">
@@ -484,7 +484,7 @@
               <div class="panel-head">
                 <div>
                   <h2>状态</h2>
-                  <p>最近一次读取的数据摘要。</p>
+                  <p>最近一次读取的研究摘要。</p>
                 </div>
               </div>
 
@@ -499,7 +499,12 @@
                 </div>
                 <div class="note-row">
                   <MessageSquareMore :size="16" />
-                  <span>AI 助手和购物车共用同一套后端接口。</span>
+                  <span>AI 助手、行为追踪和记录共用同一套后端接口。</span>
+                </div>
+                <div v-for="item in behaviorBreakdown" :key="item.key" class="note-row">
+                  <BarChart3 :size="16" />
+                  <span>{{ item.key }}</span>
+                  <strong>{{ item.value }}</strong>
                 </div>
               </div>
             </aside>
@@ -510,21 +515,21 @@
       <section v-else-if="page === 'checkout'" class="page-band">
         <div class="panel page-header">
           <div>
-            <h1>确认订单</h1>
+            <h1>确认决策</h1>
             <p>填写收货信息后提交。</p>
           </div>
           <button class="ghost-btn" type="button" @click="go('products')">
             <ArrowLeft :size="16" />
-            返回商品
+            返回样本
           </button>
         </div>
 
         <div v-if="!cart.length" class="panel empty-panel">
-          <strong>购物车为空</strong>
-          <span>先挑几件商品再来结算。</span>
+          <strong>待购清单为空</strong>
+          <span>先挑几件样本再来确认。</span>
           <button class="primary-btn" type="button" @click="go('products')">
             <Package2 :size="16" />
-            去看看商品
+            去看看样本
           </button>
         </div>
 
@@ -533,7 +538,7 @@
             <div class="panel-head">
               <div>
                 <h2>收货信息</h2>
-                <p>下单前确认联系人和地址。</p>
+                <p>提交前确认联系人和地址。</p>
               </div>
             </div>
 
@@ -561,7 +566,7 @@
               <div class="form-actions">
                 <button class="primary-btn" type="submit">
                   <CreditCard :size="16" />
-                  提交订单
+                  提交决策
                 </button>
               </div>
             </form>
@@ -570,8 +575,8 @@
           <aside class="panel">
             <div class="panel-head">
               <div>
-                <h2>购物车摘要</h2>
-                <p>{{ cartCount }} 件商品</p>
+                <h2>待购摘要</h2>
+                <p>{{ cartCount }} 项待购</p>
               </div>
             </div>
 
@@ -598,8 +603,8 @@
       <aside class="drawer">
         <div class="drawer-head">
           <div>
-            <strong>购物车</strong>
-            <span>{{ cartCount }} 件商品</span>
+            <strong>待购清单</strong>
+            <span>{{ cartCount }} 项待购</span>
           </div>
           <button class="icon-close" type="button" @click="closeCart">
             <X :size="18" />
@@ -608,8 +613,8 @@
 
         <div class="drawer-body">
           <div v-if="!cart.length" class="empty-state">
-            <strong>购物车为空</strong>
-            <span>先从商品列表里挑几件。</span>
+            <strong>待购清单为空</strong>
+            <span>先从样本列表里挑几件。</span>
           </div>
 
           <div v-else class="cart-list">
@@ -643,7 +648,7 @@
           </div>
           <button class="primary-btn" type="button" @click="openCheckout">
             <CreditCard :size="16" />
-            去结算
+            去确认
           </button>
         </div>
       </aside>
@@ -653,7 +658,7 @@
       <aside class="drawer ai-drawer">
         <div class="drawer-head">
           <div>
-            <strong>AI 助手</strong>
+            <strong>研究 AI</strong>
             <span>{{ aiContextLabel }}</span>
           </div>
           <button class="icon-close" type="button" @click="closeAi">
@@ -668,7 +673,7 @@
             type="button"
             @click="switchAi('seller')"
           >
-            小卖
+            促销型
           </button>
           <button
             class="segment"
@@ -676,14 +681,14 @@
             type="button"
             @click="switchAi('guardian')"
           >
-            小盾
+            守护型
           </button>
         </div>
 
         <div ref="aiMessagesEl" class="drawer-body ai-body">
           <div v-if="!aiHistory[aiType].length" class="empty-state">
-            <strong>开始聊天吧</strong>
-            <span>你可以先问问这个商品值不值得买。</span>
+            <strong>开始对话吧</strong>
+            <span>你可以先问问这个样本值不值得加入待购清单。</span>
           </div>
 
           <div v-else class="chat-list">
@@ -702,7 +707,7 @@
           <input
             v-model="aiMessage"
             type="text"
-            :placeholder="aiType === 'seller' ? '向小卖提问...' : '向小盾提问...'"
+            :placeholder="aiType === 'seller' ? '向促销型 AI 提问...' : '向守护型 AI 提问...'"
           />
           <button class="primary-btn" type="submit" :disabled="aiSending || !aiMessage.trim()">
             <MessageSquareMore :size="16" />
@@ -717,7 +722,7 @@
         <div class="drawer-head">
           <div>
             <strong>{{ authMode === 'login' ? '登录' : '注册' }}</strong>
-            <span>ShopGuard 账户</span>
+            <span>ShopGuard 研究账户</span>
           </div>
           <button class="icon-close" type="button" @click="closeAuth">
             <X :size="18" />
@@ -784,6 +789,7 @@ import {
   CartAPI,
   OrderAPI,
   ProductAPI,
+  ResearchAPI,
   TokenManager,
 } from '@/api.js';
 import {
@@ -998,16 +1004,18 @@ const selectedOrder = computed(() => {
 
 const aiContextLabel = computed(() => {
   const product = products.value.find((item) => item.id === aiProductId.value) || selectedProduct.value;
-  return product ? `当前商品：${product.name}` : '当前商品：未选择';
+  return product ? `当前样本：${product.name}` : '当前样本：未选择';
 });
 
 const isAdminUser = computed(() => user.value?.role === 'admin');
+const behaviorBreakdown = computed(() => adminStats.value?.behavior_breakdown || []);
 const adminStatCards = computed(() => [
   { label: '用户', value: adminStats.value?.total_users ?? 0 },
-  { label: '商品', value: adminStats.value?.total_products ?? 0 },
-  { label: '订单', value: adminStats.value?.total_orders ?? 0 },
+  { label: '样本', value: adminStats.value?.total_products ?? 0 },
+  { label: '记录', value: adminStats.value?.total_orders ?? 0 },
   { label: '收入', value: formatMoney(adminStats.value?.total_revenue ?? 0) },
   { label: '对话', value: adminStats.value?.total_conversations ?? 0 },
+  { label: '行为', value: adminStats.value?.total_behaviors ?? 0 },
 ]);
 
 onMounted(async () => {
@@ -1024,7 +1032,7 @@ onBeforeUnmount(() => {
 
 async function bootstrap() {
   await Promise.all([loadCategories(), loadProducts(), loadCart()]);
-  document.title = 'ShopGuard';
+  document.title = 'ShopGuard 决策研究台';
 }
 
 function readRoute() {
@@ -1052,6 +1060,11 @@ function setPage(pageName) {
 }
 
 function applySearch() {
+  void trackBehavior('search', {
+    query: filters.q,
+    category: filters.category,
+    sort: filters.sort,
+  });
   go('products');
 }
 
@@ -1063,6 +1076,12 @@ function resetFilters() {
 
 function pickProduct(id) {
   selectedProductId.value = id;
+  void trackBehavior('view_product', {
+    productId: id,
+    from: page.value,
+    query: filters.q,
+    category: filters.category,
+  });
   if (page.value !== 'products') {
     go('products');
   }
@@ -1095,6 +1114,11 @@ function openAi(type = 'seller', product = selectedProduct.value) {
   aiType.value = type;
   aiProductId.value = product?.id || '';
   aiOpen.value = true;
+  void trackBehavior('click', {
+    action: 'open_ai',
+    aiType: type,
+    productId: product?.id || null,
+  });
   loadAiHistory(type);
 }
 
@@ -1104,7 +1128,21 @@ function closeAi() {
 
 function switchAi(type) {
   aiType.value = type;
+  void trackBehavior('click', {
+    action: 'switch_ai',
+    aiType: type,
+    productId: aiProductId.value || selectedProduct.value?.id || null,
+  });
   loadAiHistory(type);
+}
+
+async function trackBehavior(behaviorType, payload = {}) {
+  if (!token.value) return;
+  try {
+    await ResearchAPI.track(behaviorType, payload);
+  } catch {
+    // Research logging should never block the primary flow.
+  }
 }
 
 function ensureAuth() {
@@ -1183,7 +1221,7 @@ async function loadProducts() {
     }
   } catch (error) {
     products.value = [];
-    toast(error.message || '加载商品失败', 'error');
+    toast(error.message || '加载样本失败', 'error');
   } finally {
     loading.products = false;
   }
@@ -1205,7 +1243,7 @@ async function loadCart() {
       TokenManager.clear();
       openAuth('login');
     } else {
-      toast(error.message || '加载购物车失败', 'error');
+      toast(error.message || '加载待购清单失败', 'error');
     }
   }
 }
@@ -1224,7 +1262,7 @@ async function loadOrders() {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加载订单失败', 'error');
+      toast(error.message || '加载记录失败', 'error');
     }
   } finally {
     loading.orders = false;
@@ -1247,11 +1285,11 @@ async function loadAdmin() {
     adminForm.seller_ai_enabled = Boolean(config.seller_ai_enabled);
     adminForm.guardian_ai_enabled = Boolean(config.guardian_ai_enabled);
     adminForm.deepseek_api_key = '';
-  } catch (error) {
+    } catch (error) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加载管理后台失败', 'error');
+      toast(error.message || '加载研究后台失败', 'error');
     }
   } finally {
     loading.admin = false;
@@ -1263,12 +1301,17 @@ async function addToCart(product) {
   try {
     await CartAPI.add(product.id, 1);
     await loadCart();
-    toast('已加入购物车');
+    toast('已加入待购清单');
+    void trackBehavior('add_cart', {
+      productId: product.id,
+      quantity: 1,
+      source: page.value,
+    });
   } catch (error) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加入购物车失败', 'error');
+      toast(error.message || '加入待购清单失败', 'error');
     }
   }
 }
@@ -1279,15 +1322,26 @@ async function changeCartQuantity(item, delta) {
   try {
     if (nextQuantity <= 0) {
       await CartAPI.remove(item.id);
+      void trackBehavior('remove_cart', {
+        productId: item.product_id,
+        source: 'cart-drawer',
+      });
     } else {
       await CartAPI.update(item.id, nextQuantity);
+      if (delta > 0) {
+        void trackBehavior('add_cart', {
+          productId: item.product_id,
+          quantity: delta,
+          source: 'cart-drawer',
+        });
+      }
     }
     await loadCart();
   } catch (error) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '更新购物车失败', 'error');
+      toast(error.message || '更新待购清单失败', 'error');
     }
   }
 }
@@ -1297,6 +1351,10 @@ async function removeCartItem(item) {
   try {
     await CartAPI.remove(item.id);
     await loadCart();
+    void trackBehavior('remove_cart', {
+      productId: item.product_id,
+      source: 'cart-drawer',
+    });
   } catch (error) {
     if (error.status === 401) {
       openAuth('login');
@@ -1323,7 +1381,12 @@ async function submitOrder() {
     const result = await OrderAPI.create(items, shippingAddress);
     cart.value = [];
     closeCart();
-    toast(`订单已创建：${result.orderNo}`);
+    toast(`记录已创建：${result.orderNo}`);
+    void trackBehavior('place_order', {
+      orderNo: result.orderNo,
+      itemCount: items.length,
+      total: cartTotal.value,
+    });
     window.location.hash = `/orders`;
     syncRoute();
     await loadOrders();
@@ -1332,7 +1395,7 @@ async function submitOrder() {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '下单失败', 'error');
+      toast(error.message || '提交决策失败', 'error');
     }
   }
 }
@@ -1384,6 +1447,11 @@ async function sendAiMessage() {
   aiSending.value = true;
   aiMessage.value = '';
   aiHistory[type] = [...aiHistory[type], { role: 'user', content: message }];
+  void trackBehavior('chat_ai', {
+    aiType: type,
+    productId: productId || null,
+    messageLength: message.length,
+  });
 
   try {
     const result = await AIAPI.chat(message, type, productId);

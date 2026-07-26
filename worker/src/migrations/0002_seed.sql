@@ -1,4 +1,4 @@
--- ShopGuard初始数据
+-- ShopGuard research seed data
 
 DELETE FROM users WHERE id = 'admin_001';
 

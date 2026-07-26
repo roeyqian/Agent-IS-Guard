@@ -62,12 +62,30 @@ export async function getStats({ request, env }) {
   const { total_revenue } = await env.db.prepare("SELECT COALESCE(SUM(final_amount), 0) as total_revenue FROM orders WHERE status != 'cancelled'").first();
   const { total_conversations } = await env.db.prepare("SELECT COUNT(*) as total_conversations FROM ai_conversations").first();
   const { total_products } = await env.db.prepare("SELECT COUNT(*) as total_products FROM products").first();
+  const { total_behaviors } = await env.db.prepare("SELECT COUNT(*) as total_behaviors FROM user_behaviors").first();
+  const { view_product_count } = await env.db.prepare("SELECT COUNT(*) as view_product_count FROM user_behaviors WHERE behavior_type = 'view_product'").first();
+  const { add_cart_count } = await env.db.prepare("SELECT COUNT(*) as add_cart_count FROM user_behaviors WHERE behavior_type = 'add_cart'").first();
+  const { remove_cart_count } = await env.db.prepare("SELECT COUNT(*) as remove_cart_count FROM user_behaviors WHERE behavior_type = 'remove_cart'").first();
+  const { place_order_count } = await env.db.prepare("SELECT COUNT(*) as place_order_count FROM user_behaviors WHERE behavior_type = 'place_order'").first();
+  const { chat_ai_count } = await env.db.prepare("SELECT COUNT(*) as chat_ai_count FROM user_behaviors WHERE behavior_type = 'chat_ai'").first();
+  const { search_count } = await env.db.prepare("SELECT COUNT(*) as search_count FROM user_behaviors WHERE behavior_type = 'search'").first();
+  const { click_count } = await env.db.prepare("SELECT COUNT(*) as click_count FROM user_behaviors WHERE behavior_type = 'click'").first();
 
   return json({
     total_users,
     total_orders,
     total_revenue,
     total_conversations,
-    total_products
+    total_products,
+    total_behaviors,
+    behavior_breakdown: [
+      { key: '浏览样本', value: view_product_count },
+      { key: '加入待购', value: add_cart_count },
+      { key: '移除待购', value: remove_cart_count },
+      { key: '提交决策', value: place_order_count },
+      { key: 'AI 对话', value: chat_ai_count },
+      { key: '搜索', value: search_count },
+      { key: '点击', value: click_count }
+    ]
   });
 }

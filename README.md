@@ -1,31 +1,26 @@
 # ShopGuard
 
-ShopGuard 是一个基于 Cloudflare Workers + D1 的 AI 电商平台，前端静态页面位于 `view/`，后端 API 位于 `worker/src/`。
+ShopGuard 是一个基于 Cloudflare Workers + D1 的消费决策研究平台，前端静态页面位于 `view/`，后端 API 位于 `worker/src/`。
 
-ShopGuard is an AI-powered e-commerce platform built on Cloudflare Workers and D1. The static frontend lives in `view/`, and the backend API lives in `worker/src/`.
+ShopGuard is a consumer-decision research platform built on Cloudflare Workers and D1. The static frontend lives in `view/`, and the backend API lives in `worker/src/`.
 
 ## 功能 / Features
 
-- 商品浏览、分类筛选和搜索
-- 购物车管理与下单
-- 订单列表与订单详情
-- 双 AI 助手：销售助手和消费守护助手
-- 管理后台：AI 配置与统计面板
+- 样本浏览、分类筛选和搜索
+- 待购清单与决策提交
+- 记录列表与详情查看
+- 双 AI 助手：促销型 AI 和守护型 AI
+- 研究后台：AI 配置与行为统计
 - 用户行为追踪与研究数据记录
 
-- Product browsing, category filtering, and search
-- Cart management and checkout
-- Order list and order details
-- Two AI assistants: Seller and Guardian
-- Admin dashboard for AI settings and stats
+- Sample browsing, category filtering, and search
+- Watchlist and decision submission
+- Record list and detail view
+- Two AI assistants: Promotional AI and Guardian AI
+- Research dashboard for AI settings and behavior stats
 - User behavior tracking and research data logging
 
 ## 技术栈 / Tech Stack
-
-- Cloudflare Workers
-- Cloudflare D1
-- Cloudflare KV
-- Vue.js + Vite
 
 - Cloudflare Workers
 - Cloudflare D1
@@ -39,16 +34,9 @@ ShopGuard is an AI-powered e-commerce platform built on Cloudflare Workers and D
 - `worker/src/modules/` 各业务模块
 - `worker/src/migrations/` 数据库迁移与种子数据
 
-- `view/` Frontend static assets
-- `worker/src/app/` Worker entry and routing
-- `worker/src/modules/` Business modules
-- `worker/src/migrations/` Database migrations and seed data
-
 ## 本地运行 / Local Development
 
 进入 Worker 目录安装依赖：
-
-Install dependencies in the Worker directory:
 
 ```bash
 cd worker
@@ -56,8 +44,6 @@ npm install
 ```
 
 启动本地开发：
-
-Start the local dev server:
 
 ```bash
 npm run dev
@@ -73,8 +59,6 @@ npm install
 npm run build
 ```
 
-`wrangler dev` serves both the API and the static frontend.
-
 部署前先构建前端，再在 `worker/` 目录执行：
 
 ```bash
@@ -87,8 +71,6 @@ npm run deploy
 
 先创建并绑定 D1 数据库，然后执行迁移与种子数据。当前脚本使用的数据库名是 `zero-1-base`：
 
-Create and bind the D1 database, then run migrations and seed data. The current scripts use the database name `zero-1-base`:
-
 ```bash
 npm run db:init
 npm run db:seed
@@ -96,23 +78,15 @@ npm run db:seed
 
 如果你在 Cloudflare 上使用了不同的数据库名，请同步调整 `worker/package.json` 里的脚本。
 
-If you use a different database name on Cloudflare, update the scripts in `worker/package.json` accordingly.
-
 ## 管理员 / Admin
 
 注册时如果用户名填写为 `admin`，系统会自动将该账号标记为管理员。
 
 登录时使用用户名 + 密码。
 
-If you register with the username `admin`, the system will automatically mark that account as an admin.
-
-Log in with username + password.
-
 ## AI 配置 / AI Configuration
 
-在管理后台中填写 DeepSeek API Key、Base URL 和模型名后，即可启用 AI 助手。
-
-Fill in the DeepSeek API key, base URL, and model name in the admin panel to enable the AI assistants.
+在管理后台中填写 DeepSeek API Key、Base URL 和模型名后，即可启用 AI 研究助手。
 
 ## 路由概览 / Routes
 
@@ -123,14 +97,7 @@ Fill in the DeepSeek API key, base URL, and model name in the admin panel to ena
 - `GET /api/orders`
 - `GET /api/ai/history`
 - `GET /api/admin/ai-config`
-
-- `GET /` Frontend page
-- `GET /api/products`
-- `GET /api/categories`
-- `GET /api/cart`
-- `GET /api/orders`
-- `GET /api/ai/history`
-- `GET /api/admin/ai-config`
+- `POST /api/research/track`
 
 ## License
 

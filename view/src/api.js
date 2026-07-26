@@ -114,6 +114,17 @@ export const AIAPI = {
     request(`/ai/history${aiType ? `?aiType=${aiType}` : ''}`),
 };
 
+export const ResearchAPI = {
+  track: (behaviorType, payload = {}) =>
+    request('/research/track', {
+      method: 'POST',
+      body: JSON.stringify({
+        behaviorType,
+        ...payload,
+      }),
+    }),
+};
+
 export const AdminAPI = {
   getAiConfig: () => request('/admin/ai-config'),
   updateAiConfig: (config) =>

@@ -1,5 +1,5 @@
 -- ShopGuard Database Schema
--- 基于BuyMate (CHI 2026)研究框架的电商平台数据库
+-- 基于 BuyMate (CHI 2026) 的消费决策研究平台数据库
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_hot ON products(is_hot, sales_count DESC);
 
--- 购物车
+-- 待购清单
 CREATE TABLE IF NOT EXISTS cart_items (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
 
 CREATE INDEX IF NOT EXISTS idx_conversations_user_session ON ai_conversations(user_id, session_id, timestamp);
 
--- 用户行为追踪
+-- 用户行为追踪 / Research behavior logging
 CREATE TABLE IF NOT EXISTS user_behaviors (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
