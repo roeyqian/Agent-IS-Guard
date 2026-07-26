@@ -1,0 +1,77 @@
+import { json, requireAuth, getSession } from "../../app/http.js";
+import { callDeepSeek } from "./deepseek.js";
+import { getSellerPrompt } from "./seller.js";
+import { getGuardianPrompt } from "./guardian.js";
+
+export async function chat({ request, env }) {
+  const token = requireAuth(request);
+  const session = await getSession(token, env);
+  const { message, aiType, productId } = await request.json();
+
+  if (!message || !aiType) {
+    throw { status: 400, message: "Message and aiType required" };
+  }
+
+  if (!['seller', 'guardian'].includes(aiType)) {
+    throw { status: 400, message: "Invalid AI type" };
+  }
+
+  const config = await env.db.prepare("SELECT * FROM ai_config WHERE id = 1").first();
+  if (!config || !config.deepseek_api_key) {
+    throw { status: 503, message: "AI service not configured. Please contact administrator to set up DeepSeek API Key." };
+  }
+
+  const { results: history } = await env.db.prepare(`
+    SELECT role, content FROM ai_conversations
+    WHERE user_id = ? AND ai_type = ?
+    ORDER BY timestamp DESC LIMIT 10
+  `).bind(session.userId, aiType).all();
+
+  const messages = history.reverse().map(h => ({ role: h.role, content: h.content }));
+
+  let productInfo = null;
+  if (productId) {
+    productInfo = await env.db.prepare("SELECT * FROM products WHERE id = ?").bind(productId).first();
+  }
+
+  const systemPrompt = aiType === 'seller'
+    ? getSellerPrompt(productInfo)
+    : getGuardianPrompt(session, productInfo);
+
+  const aiResponse = await callDeepSeek(config, systemPrompt, messages, message);
+
+  const conversationId = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const timestamp = new Date().toISOString();
+
+  await env.db.prepare(`
+    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, timestamp)
+    VALUES (?, ?, ?, ?, 'user', ?, ?, ?)
+  `).bind(conversationId + '_u', session.userId, token, aiType, message, productId || null, timestamp).run();
+
+  await env.db.prepare(`
+    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, timestamp)
+    VALUES (?, ?, ?, ?, 'assistant', ?, ?, ?)
+  `).bind(conversationId + '_a', session.userId, token, aiType, aiResponse, productId || null, timestamp).run();
+
+  return json({ response: aiResponse, aiType });
+}
+
+export async function getHistory({ request, env, url }) {
+  const token = requireAuth(request);
+  const session = await getSession(token, env);
+  const aiType = url.searchParams.get('aiType');
+
+  let query = "SELECT * FROM ai_conversations WHERE user_id = ?";
+  const params = [session.userId];
+
+  if (aiType) {
+    query += " AND ai_type = ?";
+    params.push(aiType);
+  }
+
+  query += " ORDER BY timestamp DESC LIMIT 50";
+
+  const { results } = await env.db.prepare(query).bind(...params).all();
+
+  return json({ history: results });
+}

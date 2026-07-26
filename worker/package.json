@@ -1,0 +1,14 @@
+{
+  "name": "shopguard-worker",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute shopguard-db --file=src/migrations/0001_init.sql --remote",
+    "db:seed": "wrangler d1 execute shopguard-db --file=src/migrations/0002_seed.sql --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.114.0"
+  }
+}
