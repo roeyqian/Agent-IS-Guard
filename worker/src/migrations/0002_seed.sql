@@ -1,5 +1,7 @@
 -- ShopGuard初始数据
 
+DELETE FROM users WHERE id = 'admin_001';
+
 -- 插入分类
 INSERT INTO categories (id, name, parent_id, icon, sort_order) VALUES
 ('cat_digital', '数码电子', NULL, '📱', 1),
@@ -7,10 +9,6 @@ INSERT INTO categories (id, name, parent_id, icon, sort_order) VALUES
 ('cat_home', '家居生活', NULL, '🏠', 3),
 ('cat_beauty', '美妆护肤', NULL, '💄', 4),
 ('cat_food', '食品饮料', NULL, '🍔', 5);
-
--- 插入管理员账户（密码: admin123）
-INSERT INTO users (id, username, email, password_hash, salt, role, created_at) VALUES
-('admin_001', 'admin', 'admin@shopguard.com', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'admin', 'admin', datetime('now'));
 
 -- 数码电子
 INSERT INTO products (id, category_id, name, subtitle, description, price, original_price, stock, sales_count, rating, image_url, images_json, specs_json, tags_json, is_hot, is_new, created_at, updated_at) VALUES

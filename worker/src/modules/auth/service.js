@@ -3,7 +3,10 @@ import { json, requireAuth, getSession } from "../../app/http.js";
 export async function register({ request, env }) {
   const { email, password, username } = await request.json();
 
-  if (!email || !password || !username) {
+  const normalizedUsername = String(username || "").trim();
+  const isAdminAccount = normalizedUsername === "admin";
+
+  if (!email || !password || !normalizedUsername) {
     throw { status: 400, message: "Missing required fields" };
   }
 
@@ -18,14 +21,17 @@ export async function register({ request, env }) {
 
   await env.db.prepare(
     `INSERT INTO users (id, username, email, password_hash, salt, role, created_at)
-     VALUES (?, ?, ?, ?, ?, 'user', datetime('now'))`
-  ).bind(userId, username, email, passwordHash, salt).run();
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+  ).bind(userId, normalizedUsername, email, passwordHash, salt, isAdminAccount ? 'admin' : 'user').run();
 
   const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-  const sessionData = { userId, email, username, role: 'user' };
+  const sessionData = { userId, email, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' };
   await env.kv.put(`session:${sessionToken}`, JSON.stringify(sessionData), { expirationTtl: 604800 });
 
-  return json({ token: sessionToken, user: { id: userId, email, username, role: 'user' } });
+  return json({
+    token: sessionToken,
+    user: { id: userId, email, username: normalizedUsername, role: isAdminAccount ? 'admin' : 'user' }
+  });
 }
 
 export async function login({ request, env }) {

@@ -82,17 +82,11 @@ npm run db:seed
 
 If you use a different database name on Cloudflare, update the scripts in `worker/package.json` accordingly.
 
-## 默认账号 / Default Account
+## 管理员 / Admin
 
-种子数据包含一个管理员账号：
+注册时如果用户名填写为 `admin`，系统会自动将该账号标记为管理员。
 
-The seed data includes an admin account:
-
-- 用户名：`admin`
-- 密码：`admin123`
-
-- Username: `admin`
-- Password: `admin123`
+If you register with the username `admin`, the system will automatically mark that account as an admin.
 
 ## AI 配置 / AI Configuration
 
