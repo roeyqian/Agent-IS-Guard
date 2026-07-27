@@ -157,7 +157,7 @@ export async function getOrderDetail({ request, env, params, url }) {
   `).bind(params.id).first();
 
   if (!order) {
-    throw { status: 404, message: "Order not found" };
+    throw { status: 404, message: "Record not found" };
   }
 
   const { results: items } = await env.db.prepare(
@@ -207,12 +207,12 @@ export async function updateOrderStatus({ request, env, params }) {
   const note = String(body.note || '').trim();
 
   if (!VALID_ORDER_STATUSES.includes(status)) {
-    throw { status: 400, message: "Invalid order status" };
+    throw { status: 400, message: "Invalid record status" };
   }
 
   const order = await env.db.prepare("SELECT * FROM orders WHERE id = ?").bind(params.id).first();
   if (!order) {
-    throw { status: 404, message: "Order not found" };
+    throw { status: 404, message: "Record not found" };
   }
 
   const timestampField = STATUS_TIMESTAMPS[status];
@@ -228,10 +228,10 @@ export async function updateOrderStatus({ request, env, params }) {
   await env.db.prepare(`
     INSERT INTO order_events (id, order_id, event_type, status, note, actor_user_id, created_at)
     VALUES (?, ?, 'status_changed', ?, ?, ?, datetime('now'))
-  `).bind(createId("ordevt"), params.id, status, note || `Status changed to ${status}`, session.userId).run();
+  `).bind(createId("ordevt"), params.id, status, note || `Research record marked as ${status}`, session.userId).run();
 
   return json({
-    message: "Order updated",
+    message: "Record updated",
     orderId: params.id,
     status,
   });
@@ -251,10 +251,8 @@ function parseJson(value, fallback) {
   }
 }
 
-const VALID_ORDER_STATUSES = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
+const VALID_ORDER_STATUSES = ['completed', 'cancelled'];
 const STATUS_TIMESTAMPS = {
-  paid: 'paid_at',
-  shipped: 'shipped_at',
   completed: 'completed_at',
   cancelled: 'cancelled_at',
 };

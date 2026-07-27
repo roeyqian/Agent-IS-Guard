@@ -7,11 +7,11 @@ export async function createOrder({ request, env, url }) {
   const { items, shippingAddress } = await readJsonBody(request);
 
   if (!items || items.length === 0) {
-    throw { status: 400, message: "Order must contain at least one item" };
+    throw { status: 400, message: "Submission must contain at least one item" };
   }
 
   if (!shippingAddress || !shippingAddress.name || !shippingAddress.phone || !shippingAddress.address) {
-    throw { status: 400, message: "Invalid shipping address" };
+    throw { status: 400, message: "Invalid participant submission info" };
   }
 
   let totalAmount = 0;
@@ -47,28 +47,25 @@ export async function createOrder({ request, env, url }) {
   const orderNo = `ORD${Date.now()}`;
   const statements = [
     env.db.prepare(`
-      INSERT INTO orders (id, order_no, user_id, total_amount, final_amount, status, shipping_address_json, created_at)
-      VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))
+      INSERT INTO orders (id, order_no, user_id, total_amount, final_amount, status, shipping_address_json, created_at, completed_at)
+      VALUES (?, ?, ?, ?, ?, 'completed', ?, datetime('now'), datetime('now'))
     `).bind(orderId, orderNo, session.userId, totalAmount, totalAmount, JSON.stringify(shippingAddress)),
     env.db.prepare(`
       INSERT INTO order_events (id, order_id, event_type, status, note, actor_user_id, created_at)
-      VALUES (?, ?, 'created', 'pending', ?, ?, datetime('now'))
-    `).bind(createId("ordevt"), orderId, 'Order created by customer', session.userId),
-    ...orderItems.flatMap((item) => [
+      VALUES (?, ?, 'recorded', 'completed', ?, ?, datetime('now'))
+    `).bind(createId("ordevt"), orderId, 'Simulated decision recorded for research', session.userId),
+    ...orderItems.map((item) =>
       env.db.prepare(`
         INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, subtotal)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(createId("item"), orderId, item.productId, item.productName, item.productImage, item.price, item.quantity, item.subtotal),
-      env.db.prepare(
-        "UPDATE products SET stock = stock - ? WHERE id = ?"
-      ).bind(item.quantity, item.productId),
-    ]),
+    ),
     env.db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(session.userId),
   ];
 
   await env.db.batch(statements);
 
-  return json({ orderId, orderNo, totalAmount });
+  return json({ orderId, orderNo, totalAmount, status: 'completed' });
 }
 
 export async function getOrders({ request, env }) {
@@ -96,7 +93,7 @@ export async function getOrderById({ request, env, params, url }) {
   ).bind(params.id, session.userId).first();
 
   if (!order) {
-    throw { status: 404, message: "Order not found" };
+    throw { status: 404, message: "Record not found" };
   }
 
   const { results: items } = await env.db.prepare(

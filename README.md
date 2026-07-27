@@ -10,17 +10,17 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - 待购清单与决策提交
 - 记录列表与详情查看
 - 双 AI 助手：促销型 AI 和守护型 AI
-- 研究后台：AI 配置、行为统计与订单管理
+- 研究后台：AI 配置、行为统计与决策记录管理
 - 用户行为追踪与研究数据记录
-- 样本洞察、订单事件时间线和会话级分析
+- 样本洞察、记录事件时间线和会话级分析
 
 - Sample browsing, category filtering, and search
 - Watchlist and decision submission
 - Record list and detail view
 - Two AI assistants: Promotional AI and Guardian AI
-- Research dashboard for AI settings, behavior stats, and order management
+- Research dashboard for AI settings, behavior stats, and decision record management
 - User behavior tracking and research data logging
-- Product insights, order timelines, and session-level analysis
+- Product insights, record timelines, and session-level analysis
 
 ## 技术栈 / Tech Stack
 

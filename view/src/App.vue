@@ -276,7 +276,7 @@
                   {{ t('detail.guardianAdvice') }}
                 </button>
                 <button class="secondary-btn" type="button" @click="setPage('checkout')">
-                  <CreditCard :size="16" />
+                  <ClipboardCheck :size="16" />
                   {{ t('detail.enterDecision') }}
                 </button>
               </div>
@@ -868,7 +868,7 @@
 
               <div class="form-actions">
                 <button class="primary-btn" type="submit">
-                  <CreditCard :size="16" />
+                  <ClipboardCheck :size="16" />
                   {{ t('checkout.submit') }}
                 </button>
               </div>
@@ -950,7 +950,7 @@
             <span>{{ t('common.total') }}</span>
           </div>
           <button class="primary-btn" type="button" @click="openCheckout">
-            <CreditCard :size="16" />
+            <ClipboardCheck :size="16" />
             {{ t('cart.toCheckout') }}
           </button>
         </div>
@@ -1202,8 +1202,8 @@ import {
   BarChart3,
   Bot,
   ChevronRight,
+  ClipboardCheck,
   Clock3,
-  CreditCard,
   Filter,
   Layers3,
   LogIn,
@@ -1297,7 +1297,7 @@ const adminForm = reactive({
   guardian_ai_enabled: true,
 });
 const adminOrderForm = reactive({
-  status: 'pending',
+  status: 'completed',
   note: '',
 });
 
@@ -1319,9 +1319,6 @@ const sortOptions = computed(() => [
 ]);
 
 const orderStatusOptions = computed(() => [
-  { value: 'pending', label: t('common.pending') },
-  { value: 'paid', label: t('status.paid') },
-  { value: 'shipped', label: t('common.shipped') },
   { value: 'completed', label: t('common.completed') },
   { value: 'cancelled', label: t('status.cancelled') },
 ]);
@@ -1811,6 +1808,11 @@ function statusClass(status) {
   return 'pending';
 }
 
+function editableOrderStatus(status) {
+  const value = String(status || '').toLowerCase();
+  return orderStatusOptions.value.some((item) => item.value === value) ? value : 'completed';
+}
+
 function aiTypeLabel(value) {
   return value === 'seller' ? t('common.sellerAi') : t('common.guardianAi');
 }
@@ -1984,7 +1986,7 @@ async function loadAdminOrderDetail(orderId) {
   try {
     const result = await AdminAPI.getOrderDetail(orderId);
     selectedAdminOrderDetail.value = result.order || null;
-    adminOrderForm.status = selectedAdminOrderDetail.value?.status || 'pending';
+    adminOrderForm.status = editableOrderStatus(selectedAdminOrderDetail.value?.status);
     adminOrderForm.note = '';
   } catch (error) {
     selectedAdminOrderDetail.value = null;
@@ -2268,7 +2270,7 @@ async function logout() {
   productInsights.value = null;
   researchSummary.value = null;
   adminOrders.value = [];
-  adminOrderForm.status = 'pending';
+  adminOrderForm.status = 'completed';
   adminOrderForm.note = '';
   adminStats.value = null;
   adminConfig.value = null;
