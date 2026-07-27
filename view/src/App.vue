@@ -125,41 +125,6 @@
             </div>
           </div>
 
-          <div class="hero-visual">
-            <div class="feature-card">
-              <img
-                v-if="heroProductImage"
-                :src="heroProductImage"
-                :alt="heroProduct?.name || 'featured product'"
-              />
-              <div v-else class="image-fallback">
-                <Sparkles :size="28" />
-                <span>{{ t('hero.researchSample') }}</span>
-              </div>
-              <div class="feature-overlay">
-                <strong>{{ heroProduct?.name || 'ShopGuard Research' }}</strong>
-                <span>{{ heroProduct ? formatMoney(heroProduct.price) : '¥0' }}</span>
-              </div>
-            </div>
-
-            <div class="feature-list">
-              <button
-                v-for="item in heroItems"
-                :key="item.id"
-                class="feature-row"
-                type="button"
-                @click="pickProduct(item.id)"
-              >
-                <img v-if="productImage(item)" :src="productImage(item)" :alt="item.name" />
-                <div v-else class="row-fallback">SG</div>
-                <div class="feature-row-copy">
-                  <strong>{{ item.name }}</strong>
-                  <span>{{ formatMoney(item.price) }}</span>
-                </div>
-                <ChevronRight :size="16" />
-              </button>
-            </div>
-          </div>
         </div>
 
         <div class="content-grid">
@@ -1454,9 +1419,6 @@ const selectedProduct = computed(() => {
   );
 });
 
-const heroProduct = computed(() => selectedProduct.value || products.value[0] || null);
-const heroProductImage = computed(() => productImage(heroProduct.value));
-const heroItems = computed(() => products.value.slice(0, 3));
 const cartCount = computed(() => cart.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0));
 const cartTotal = computed(() =>
   cart.value.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0),
