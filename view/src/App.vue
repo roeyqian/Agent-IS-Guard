@@ -290,6 +290,58 @@
                 </div>
               </div>
 
+              <div v-if="!isAdminUser" class="pressure-panel">
+                <div class="panel-head compact-head">
+                  <div>
+                    <h2>{{ t('pressure.title') }}</h2>
+                    <p>{{ t('pressure.subtitle') }}</p>
+                  </div>
+                  <span class="pressure-level" :class="`level-${pressureLevel}`">
+                    {{ pressureLevelLabel }}
+                  </span>
+                </div>
+
+                <div class="pressure-meter">
+                  <div>
+                    <strong>{{ pressureScore }}</strong>
+                    <span>{{ t('pressure.score') }}</span>
+                  </div>
+                  <div class="pressure-track">
+                    <i :style="{ width: `${pressureScore}%` }"></i>
+                  </div>
+                </div>
+
+                <div class="pressure-cue-grid">
+                  <button
+                    v-for="item in pressureCueCards"
+                    :key="item.key"
+                    class="pressure-cue"
+                    :class="{ active: pressureProbe[item.key] }"
+                    type="button"
+                    @click="togglePressureCue(item.key)"
+                  >
+                    <span class="intervention-icon">
+                      <component :is="item.icon" :size="16" />
+                    </span>
+                    <strong>{{ item.label }}</strong>
+                    <span>{{ item.body }}</span>
+                  </button>
+                </div>
+
+                <p class="pressure-recommendation">{{ pressureRecommendation }}</p>
+
+                <div class="pressure-actions">
+                  <button class="ghost-btn" type="button" @click="resetPressureProbe">
+                    <RefreshCcw :size="16" />
+                    {{ t('common.reset') }}
+                  </button>
+                  <button class="secondary-btn" type="button" @click="recordPressureProbe(selectedProduct)">
+                    <ShieldCheck :size="16" />
+                    {{ t('pressure.guardianCta') }}
+                  </button>
+                </div>
+              </div>
+
               <div v-if="!isAdminUser" class="detail-actions">
                 <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
                   <ShoppingCart :size="16" />
@@ -682,6 +734,40 @@
                 <div class="research-stat">
                   <strong>{{ formatMoney(researchTotals.revenue ?? 0) }}</strong>
                   <span>{{ t('admin.totalRevenue') }}</span>
+                </div>
+              </div>
+
+              <div v-if="researchPressure.total" class="pressure-summary">
+                <div class="panel-head compact-head">
+                  <div>
+                    <h2>{{ t('admin.pressureTitle') }}</h2>
+                    <p>{{ t('admin.pressureSubtitle') }}</p>
+                  </div>
+                </div>
+                <div class="research-grid">
+                  <div class="research-stat">
+                    <strong>{{ researchPressure.total }}</strong>
+                    <span>{{ t('admin.pressureTotal') }}</span>
+                  </div>
+                  <div class="research-stat">
+                    <strong>{{ researchPressure.avgScore }}</strong>
+                    <span>{{ t('admin.pressureAvg') }}</span>
+                  </div>
+                  <div class="research-stat">
+                    <strong>{{ pressureAdminTopCue }}</strong>
+                    <span>{{ t('admin.pressureTopCue') }}</span>
+                  </div>
+                </div>
+                <div v-if="researchPressure.levels?.length" class="intervention-summary">
+                  <div v-for="item in researchPressure.levels" :key="item.level" class="intervention-summary-row">
+                    <span>{{ pressureLevelName(item.level) }}</span>
+                    <strong>{{ t('admin.pressureLevelCount', { count: item.value, score: item.avgScore }) }}</strong>
+                  </div>
+                </div>
+                <div v-if="researchPressure.cues?.length" class="insight-chips">
+                  <span v-for="item in researchPressure.cues" :key="item.cue" class="status pending">
+                    {{ pressureCueName(item.cue) }} {{ item.value }}
+                  </span>
                 </div>
               </div>
 
@@ -1363,6 +1449,12 @@ const checkoutReflection = reactive({
   persuasion_reframe: false,
   delay: false,
 });
+const pressureProbe = reactive({
+  urgency: false,
+  scarcity: false,
+  social_proof: false,
+  anchor_discount: false,
+});
 
 const toasts = ref([]);
 
@@ -1557,6 +1649,11 @@ const researchDailyBehavior = computed(() => researchSummary.value?.dailyBehavio
 const researchRecentSessions = computed(() => researchSummary.value?.recentSessions || []);
 const researchAiUsage = computed(() => researchSummary.value?.aiUsage || []);
 const researchInterventions = computed(() => researchSummary.value?.interventions || []);
+const researchPressure = computed(() => researchSummary.value?.pressure || { total: 0, avgScore: 0, levels: [], cues: [] });
+const pressureAdminTopCue = computed(() => {
+  const topCue = researchPressure.value.cues?.[0]?.cue;
+  return topCue ? pressureCueName(topCue) : t('common.pending');
+});
 const adminOrderDetailView = computed(() => selectedAdminOrderDetail.value || null);
 
 const interventionCards = computed(() => {
@@ -1598,6 +1695,54 @@ const checkoutChecklist = computed(() =>
     label: item.label,
   })),
 );
+const pressureCueCards = computed(() => [
+  {
+    key: 'urgency',
+    icon: Clock3,
+    weight: 28,
+    label: t('pressure.urgency'),
+    body: t('pressure.urgencyBody'),
+  },
+  {
+    key: 'scarcity',
+    icon: Package2,
+    weight: 24,
+    label: t('pressure.scarcity'),
+    body: t('pressure.scarcityBody'),
+  },
+  {
+    key: 'social_proof',
+    icon: UserRound,
+    weight: 22,
+    label: t('pressure.socialProof'),
+    body: t('pressure.socialProofBody'),
+  },
+  {
+    key: 'anchor_discount',
+    icon: Sparkles,
+    weight: 26,
+    label: t('pressure.anchorDiscount'),
+    body: t('pressure.anchorDiscountBody'),
+  },
+]);
+const activePressureCues = computed(() =>
+  pressureCueCards.value.filter((item) => pressureProbe[item.key]),
+);
+const pressureScore = computed(() => {
+  const cueScore = activePressureCues.value.reduce((sum, item) => sum + item.weight, 0);
+  const product = selectedProduct.value;
+  const discountGap =
+    Number(product?.original_price || 0) > Number(product?.price || 0) * 1.15 ? 8 : 0;
+  const stockSignal = Number(product?.stock || 0) > 0 && Number(product?.stock || 0) <= 20 ? 6 : 0;
+  return Math.min(100, cueScore + discountGap + stockSignal);
+});
+const pressureLevel = computed(() => {
+  if (pressureScore.value >= 65) return 'high';
+  if (pressureScore.value >= 35) return 'medium';
+  return 'low';
+});
+const pressureLevelLabel = computed(() => pressureLevelName(pressureLevel.value));
+const pressureRecommendation = computed(() => t(`pressure.recommendation.${pressureLevel.value}`));
 
 watch(
   locale,
@@ -1945,6 +2090,57 @@ function behaviorLabel(value) {
 function interventionLabel(value) {
   const label = t(`intervention.${value}`);
   return label === `intervention.${value}` ? value : label;
+}
+
+function pressureLevelName(value) {
+  const label = t(`pressure.level.${value || 'unknown'}`);
+  return label === `pressure.level.${value || 'unknown'}` ? value || t('common.pending') : label;
+}
+
+function pressureCueName(value) {
+  const label = t(`pressure.cue.${value || 'unknown'}`);
+  return label === `pressure.cue.${value || 'unknown'}` ? value || t('common.pending') : label;
+}
+
+function togglePressureCue(key) {
+  pressureProbe[key] = !pressureProbe[key];
+}
+
+function resetPressureProbe() {
+  Object.keys(pressureProbe).forEach((key) => {
+    pressureProbe[key] = false;
+  });
+}
+
+function recordPressureProbe(product = selectedProduct.value) {
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  const productId = product?.id || selectedProduct.value?.id || null;
+  const cues = activePressureCues.value.map((item) => item.key);
+  const cueLabels = activePressureCues.value.map((item) => item.label);
+
+  void trackBehavior('pressure_probe', {
+    productId,
+    level: pressureLevel.value,
+    score: pressureScore.value,
+    cues,
+    cueLabels,
+    source: page.value,
+    cartValue: cartTotal.value,
+    productPrice: product?.price || null,
+  });
+
+  aiType.value = 'guardian';
+  aiProductId.value = productId || '';
+  aiMessage.value = t('pressure.prompt', {
+    name: product?.name || t('common.product'),
+    score: pressureScore.value,
+    level: pressureLevelLabel.value,
+    cues: cueLabels.length ? cueLabels.join(', ') : t('pressure.noCue'),
+  });
+  aiOpen.value = true;
+  loadAiHistory('guardian');
+  toast(t('toast.pressureProbeSaved'));
+  void nextTick(() => aiInputEl.value?.focus());
 }
 
 async function loadCategories() {

@@ -13,25 +13,29 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - 记录列表与详情查看
 - 双 AI 助手：促销型 AI 和守护型 AI
 - BuyMate 风格干预：需求反思、同类商品比较、销售话术重构、冷静延迟
+- 情境压力实验：标记限时、稀缺、社交证明和折扣锚定线索，生成压力画像
 - 研究后台：AI 配置、行为统计与决策记录管理
 - 用户行为追踪与研究数据记录
-- 样本洞察、记录事件时间线和会话级分析
+- 样本洞察、压力摘要、记录事件时间线和会话级分析
 
 - Sample browsing, category filtering, and search
 - Watchlist and decision submission
 - Record list and detail view
 - Two AI assistants: Promotional AI and Guardian AI
 - BuyMate-style interventions: need reflection, comparable-product review, persuasion reframing, and delayed decision
+- Situational pressure lab: mark urgency, scarcity, social proof, and discount anchoring cues to create pressure profiles
 - Research dashboard for AI settings, behavior stats, and decision record management
 - User behavior tracking and research data logging
-- Product insights, record timelines, and session-level analysis
+- Product insights, pressure summaries, record timelines, and session-level analysis
 
 ## 研究设计映射 / Research Mapping
 
 - `促销型 AI`：模拟直播电商中的销售式、劝服式对照条件。
 - `守护型 AI`：提供温和、实时的理性消费干预，不替用户做决定。
 - `BuyMate 干预`：把关键干预做成可点击事件并写入 `user_behaviors`。
+- `情境压力实验`：把直播电商中的限时、稀缺、社交证明和价格锚定作为独立变量记录，用于研究情境压力与理性干预之间的关系。
 - `研究后台`：汇总行为、会话、AI 对话、提交记录和干预触达次数。
+- `压力摘要`：在不新增数据库表的情况下复用 `user_behaviors.metadata_json`，聚合压力画像数量、平均压力分、等级分布和高频线索。
 - `结算前反思`：在提交决策前记录用户是否完成关键检查。
 
 ## 技术栈 / Tech Stack

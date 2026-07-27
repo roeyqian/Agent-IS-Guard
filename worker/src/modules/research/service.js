@@ -19,7 +19,16 @@ export async function trackBehavior({ request, env }) {
     return json({ message: "Click behavior ignored", skipped: true });
   }
 
-  const validTypes = ['view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search', 'intervention_check'];
+  const validTypes = [
+    'view_product',
+    'add_cart',
+    'remove_cart',
+    'place_order',
+    'chat_ai',
+    'search',
+    'intervention_check',
+    'pressure_probe',
+  ];
   if (!validTypes.includes(behaviorType)) {
     throw { status: 400, message: "Invalid behavior type" };
   }
@@ -118,6 +127,33 @@ export async function getSummary({ request, env, url }) {
      GROUP BY strategy
      ORDER BY value DESC`
   ).all();
+  const pressureRow = await env.db.prepare(
+    `SELECT COUNT(*) as value,
+            AVG(CAST(json_extract(ub.metadata_json, '$.score') AS REAL)) as avg_score
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id
+     WHERE u.role = 'user' AND ub.behavior_type = 'pressure_probe'`
+  ).first();
+  const pressureLevelRows = await env.db.prepare(
+    `SELECT COALESCE(json_extract(ub.metadata_json, '$.level'), 'unknown') as level,
+            COUNT(*) as value,
+            AVG(CAST(json_extract(ub.metadata_json, '$.score') AS REAL)) as avg_score
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id
+     WHERE u.role = 'user' AND ub.behavior_type = 'pressure_probe'
+     GROUP BY level
+     ORDER BY value DESC`
+  ).all();
+  const pressureCueRows = await env.db.prepare(
+    `SELECT cue.value as cue, COUNT(*) as value
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id,
+          json_each(ub.metadata_json, '$.cues') cue
+     WHERE u.role = 'user' AND ub.behavior_type = 'pressure_probe'
+     GROUP BY cue.value
+     ORDER BY value DESC
+     LIMIT 6`
+  ).all();
 
   return json({
     totals: {
@@ -157,5 +193,18 @@ export async function getSummary({ request, env, url }) {
       strategy: row.strategy || 'unknown',
       value: Number(row.value || 0),
     })),
+    pressure: {
+      total: Number(pressureRow?.value || 0),
+      avgScore: Math.round(Number(pressureRow?.avg_score || 0)),
+      levels: pressureLevelRows.results.map((row) => ({
+        level: row.level || 'unknown',
+        value: Number(row.value || 0),
+        avgScore: Math.round(Number(row.avg_score || 0)),
+      })),
+      cues: pressureCueRows.results.map((row) => ({
+        cue: row.cue || 'unknown',
+        value: Number(row.value || 0),
+      })),
+    },
   });
 }

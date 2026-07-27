@@ -1151,7 +1151,31 @@ img {
   background: var(--surface-soft);
 }
 
+.pressure-panel {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.pressure-summary {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .intervention-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pressure-cue-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -1167,9 +1191,29 @@ img {
   background: var(--button-bg);
 }
 
+.pressure-cue {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  min-height: 96px;
+  padding: 12px;
+  text-align: left;
+  background: var(--button-bg);
+}
+
 .intervention-card:hover {
   border-color: var(--accent);
   box-shadow: var(--active-shadow);
+}
+
+.pressure-cue:hover,
+.pressure-cue.active {
+  border-color: var(--accent);
+  box-shadow: var(--active-shadow);
+}
+
+.pressure-cue.active {
+  background: var(--accent-soft);
 }
 
 .intervention-icon {
@@ -1186,11 +1230,85 @@ img {
   align-self: center;
 }
 
-.intervention-card span:last-child {
+.pressure-cue strong {
+  align-self: center;
+}
+
+.intervention-card span:last-child,
+.pressure-cue span:last-child {
   grid-column: 1 / -1;
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.pressure-level {
+  align-self: start;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--button-bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pressure-level.level-medium {
+  border-color: rgba(217, 119, 6, 0.35);
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+}
+
+.pressure-level.level-high {
+  border-color: rgba(180, 35, 24, 0.35);
+  background: var(--toast-error-bg);
+  color: var(--toast-error-text);
+}
+
+.pressure-meter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.pressure-meter strong {
+  display: block;
+  font-size: 1.35rem;
+}
+
+.pressure-meter span,
+.pressure-recommendation {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.pressure-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--trend-track);
+}
+
+.pressure-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue), var(--amber), var(--accent));
+  transition: width var(--motion-med) var(--ease-out);
+}
+
+.pressure-recommendation {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.pressure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .intervention-summary {
@@ -2025,7 +2143,8 @@ textarea:focus-visible {
   .form-grid,
   .detail-metrics,
   .stats-grid,
-  .intervention-grid {
+  .intervention-grid,
+  .pressure-cue-grid {
     grid-template-columns: 1fr;
   }
 
