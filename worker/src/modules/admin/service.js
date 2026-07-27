@@ -1,4 +1,5 @@
 import { json, createId, readJsonBody, requireAdmin } from "../../app/http.js";
+import { testDeepSeekConnection } from "../ai/deepseek.js";
 import { getLocaleFromRequest } from "../shop/utils.js";
 
 export async function getAiConfig({ request, env }) {
@@ -8,7 +9,7 @@ export async function getAiConfig({ request, env }) {
 
   if (!config) {
     return json({
-      deepseek_api_key: null,
+      deepseek_api_key: '',
       deepseek_base_url: 'https://api.deepseek.com',
       deepseek_model: 'deepseek-chat',
       seller_ai_enabled: true,
@@ -16,35 +17,19 @@ export async function getAiConfig({ request, env }) {
     });
   }
 
-  const maskedKey = config.deepseek_api_key
-    ? `${config.deepseek_api_key.slice(0, 7)}...${config.deepseek_api_key.slice(-4)}`
-    : null;
-
-  return json({
-    ...config,
-    deepseek_api_key: maskedKey,
-    has_api_key: !!config.deepseek_api_key
-  });
+  return json(config);
 }
 
 export async function updateAiConfig({ request, env }) {
   const session = await requireAdmin(request, env);
-  const { deepseek_api_key, deepseek_base_url, deepseek_model, seller_ai_enabled, guardian_ai_enabled } = await request.json();
-
-  if (!deepseek_api_key) {
-    throw { status: 400, message: "DeepSeek API Key is required" };
-  }
-
-  if (!deepseek_api_key.startsWith('sk-')) {
-    throw { status: 400, message: "Invalid API Key format" };
-  }
+  const { deepseek_api_key, deepseek_base_url, deepseek_model, seller_ai_enabled, guardian_ai_enabled } = await readJsonBody(request);
 
   await env.db.prepare(`
     INSERT OR REPLACE INTO ai_config
     (id, deepseek_api_key, deepseek_base_url, deepseek_model, seller_ai_enabled, guardian_ai_enabled, updated_at, updated_by)
     VALUES (1, ?, ?, ?, ?, ?, datetime('now'), ?)
   `).bind(
-    deepseek_api_key,
+    String(deepseek_api_key ?? ''),
     deepseek_base_url || 'https://api.deepseek.com',
     deepseek_model || 'deepseek-chat',
     seller_ai_enabled ? 1 : 0,
@@ -53,6 +38,37 @@ export async function updateAiConfig({ request, env }) {
   ).run();
 
   return json({ message: "AI configuration updated successfully" });
+}
+
+export async function testAiConfig({ request, env }) {
+  await requireAdmin(request, env);
+
+  const savedConfig = await env.db.prepare("SELECT * FROM ai_config WHERE id = 1").first();
+  const body = await readJsonBody(request);
+  const hasSubmittedKey = Object.prototype.hasOwnProperty.call(body, 'deepseek_api_key');
+  const deepseekApiKey = hasSubmittedKey
+    ? String(body.deepseek_api_key || '').trim()
+    : String(savedConfig?.deepseek_api_key || '').trim();
+  const deepseekBaseUrl = String(body.deepseek_base_url || savedConfig?.deepseek_base_url || 'https://api.deepseek.com').trim();
+  const deepseekModel = String(body.deepseek_model || savedConfig?.deepseek_model || 'deepseek-chat').trim();
+
+  const config = {
+    deepseek_api_key: hasSubmittedKey ? deepseekApiKey : savedConfig?.deepseek_api_key || '',
+    deepseek_base_url: deepseekBaseUrl || 'https://api.deepseek.com',
+    deepseek_model: deepseekModel || 'deepseek-chat',
+  };
+
+  if (!config.deepseek_api_key) {
+    throw { status: 400, message: "DeepSeek API Key is required" };
+  }
+
+  const result = await testDeepSeekConnection(config);
+
+  return json({
+    ok: result.ok,
+    model: result.model,
+    message: "AI connection test succeeded"
+  });
 }
 
 export async function getStats({ request, env }) {

@@ -140,6 +140,11 @@ export const AdminAPI = {
       method: 'PUT',
       body: JSON.stringify(config),
     }),
+  testAiConfig: (config) =>
+    request('/admin/ai-test', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
   getStats: () => request('/admin/stats'),
   getOrders: (params = {}) => {
     const query = new URLSearchParams(params).toString();

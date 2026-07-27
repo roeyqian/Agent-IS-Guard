@@ -585,13 +585,8 @@
                   <span>DeepSeek API Key</span>
                   <input
                     v-model="adminForm.deepseek_api_key"
-                    type="password"
-                    required
-                    :placeholder="
-                      adminConfig?.has_api_key
-                        ? t('admin.apiKeySaved')
-                        : 'sk-...'
-                    "
+                    type="text"
+                    placeholder="sk-..."
                   />
                 </label>
 
@@ -620,6 +615,25 @@
                     <Settings2 :size="16" />
                     {{ t('admin.saveConfig') }}
                   </button>
+                  <button
+                    class="secondary-btn"
+                    type="button"
+                    :disabled="aiTesting"
+                    @click="testAdminAi"
+                  >
+                    <RefreshCcw :size="16" />
+                    {{ aiTesting ? t('admin.testingAi') : t('admin.testAi') }}
+                  </button>
+                </div>
+
+                <div
+                  v-if="aiTestResult"
+                  class="ai-test-result"
+                  :class="aiTestResult.ok ? 'success' : 'error'"
+                >
+                  <ShieldCheck v-if="aiTestResult.ok" :size="16" />
+                  <MessageSquareMore v-else :size="16" />
+                  <span>{{ aiTestResult.message }}</span>
                 </div>
               </form>
             </section>
@@ -1211,6 +1225,8 @@ const aiHistory = reactive({
 
 const adminConfig = ref(null);
 const adminStats = ref(null);
+const aiTesting = ref(false);
+const aiTestResult = ref(null);
 const adminForm = reactive({
   deepseek_api_key: '',
   deepseek_base_url: 'https://api.deepseek.com',
@@ -1860,7 +1876,7 @@ async function loadAdmin() {
     adminForm.deepseek_model = config.deepseek_model || 'deepseek-chat';
     adminForm.seller_ai_enabled = Boolean(config.seller_ai_enabled);
     adminForm.guardian_ai_enabled = Boolean(config.guardian_ai_enabled);
-    adminForm.deepseek_api_key = '';
+    adminForm.deepseek_api_key = config.deepseek_api_key || '';
     if (!adminOrders.value.length) {
       selectedAdminOrderId.value = '';
       selectedAdminOrderDetail.value = null;
@@ -2048,6 +2064,37 @@ async function saveAdminConfig() {
     } else {
       toast(error.message || t('toast.configSaveFailed'), 'error');
     }
+  }
+}
+
+async function testAdminAi() {
+  if (!ensureAuth()) return;
+  if (!isAdminUser.value) {
+    toast(t('toast.adminOnly'), 'error');
+    return;
+  }
+
+  aiTesting.value = true;
+  aiTestResult.value = null;
+  try {
+    const result = await AdminAPI.testAiConfig({
+      deepseek_api_key: adminForm.deepseek_api_key.trim(),
+      deepseek_base_url: adminForm.deepseek_base_url,
+      deepseek_model: adminForm.deepseek_model,
+    });
+    aiTestResult.value = {
+      ok: true,
+      message: t('admin.aiTestSuccess', { model: result.model || adminForm.deepseek_model }),
+    };
+    toast(t('toast.aiTestSuccess'));
+  } catch (error) {
+    aiTestResult.value = {
+      ok: false,
+      message: error.message || t('toast.aiTestFailed'),
+    };
+    toast(error.message || t('toast.aiTestFailed'), 'error');
+  } finally {
+    aiTesting.value = false;
   }
 }
 
