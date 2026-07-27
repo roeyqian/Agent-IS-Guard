@@ -1689,11 +1689,6 @@ function openAi(type = 'seller', product = selectedProduct.value) {
   aiType.value = type;
   aiProductId.value = product?.id || '';
   aiOpen.value = true;
-  void trackBehavior('click', {
-    action: 'open_ai',
-    aiType: type,
-    productId: product?.id || null,
-  });
   loadAiHistory(type);
   void nextTick(() => aiInputEl.value?.focus());
 }
@@ -1704,13 +1699,6 @@ function closeAi() {
 
 function switchAi(type) {
   aiType.value = type;
-  if (!isAdminUser.value) {
-    void trackBehavior('click', {
-      action: 'switch_ai',
-      aiType: type,
-      productId: aiProductId.value || selectedProduct.value?.id || null,
-    });
-  }
   loadAiHistory(type);
   void nextTick(() => aiInputEl.value?.focus());
 }

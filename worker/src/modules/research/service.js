@@ -14,7 +14,11 @@ export async function trackBehavior({ request, env }) {
     throw { status: 400, message: "Behavior type required" };
   }
 
-  const validTypes = ['view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search', 'click'];
+  if (behaviorType === 'click') {
+    return json({ message: "Click behavior ignored", skipped: true });
+  }
+
+  const validTypes = ['view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search'];
   if (!validTypes.includes(behaviorType)) {
     throw { status: 400, message: "Invalid behavior type" };
   }

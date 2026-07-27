@@ -86,7 +86,6 @@ export async function getStats({ request, env }) {
   const { place_order_count } = await env.db.prepare("SELECT COUNT(*) as place_order_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'place_order'").first();
   const { chat_ai_count } = await env.db.prepare("SELECT COUNT(*) as chat_ai_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'chat_ai'").first();
   const { search_count } = await env.db.prepare("SELECT COUNT(*) as search_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'search'").first();
-  const { click_count } = await env.db.prepare("SELECT COUNT(*) as click_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'click'").first();
 
   return json({
     total_users,
@@ -101,8 +100,7 @@ export async function getStats({ request, env }) {
       { key: 'remove_cart', value: remove_cart_count },
       { key: 'place_order', value: place_order_count },
       { key: 'chat_ai', value: chat_ai_count },
-      { key: 'search', value: search_count },
-      { key: 'click', value: click_count }
+      { key: 'search', value: search_count }
     ]
   });
 }

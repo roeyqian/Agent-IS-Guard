@@ -228,7 +228,6 @@ export const messages = {
     'behavior.place_order': '提交决策',
     'behavior.chat_ai': 'AI 对话',
     'behavior.search': '搜索',
-    'behavior.click': '点击',
   },
   'en-US': {
     'app.lang': 'English',
@@ -451,7 +450,6 @@ export const messages = {
     'behavior.place_order': 'Submitted decision',
     'behavior.chat_ai': 'AI chat',
     'behavior.search': 'Search',
-    'behavior.click': 'Click',
   },
 };
 
