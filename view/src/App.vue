@@ -18,6 +18,16 @@
       </form>
 
       <nav class="nav-actions">
+        <button
+          class="nav-chip theme-toggle"
+          type="button"
+          :aria-label="isDarkTheme ? t('theme.switchLight') : t('theme.switchDark')"
+          :title="isDarkTheme ? t('theme.switchLight') : t('theme.switchDark')"
+          @click="toggleTheme"
+        >
+          <Sun v-if="isDarkTheme" :size="16" />
+          <Moon v-else :size="16" />
+        </button>
         <div class="language-switch" :aria-label="t('app.lang')">
           <button
             v-for="item in localeOptions"
@@ -1126,6 +1136,7 @@ import {
   LogOut,
   MessageSquareMore,
   Minus,
+  Moon,
   Package2,
   Plus,
   RefreshCcw,
@@ -1134,14 +1145,19 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sparkles,
+  Sun,
   Truck,
   UserRound,
   X,
 } from 'lucide-vue-next';
 
+const THEME_STORAGE_KEY = 'shopguard_theme';
+const themeOptions = new Set(['light', 'dark']);
+
 const route = ref(readRoute());
 const page = computed(() => route.value.page);
 const locale = ref(readStoredLocale());
+const theme = ref(readStoredTheme());
 
 const user = ref(TokenManager.getUser());
 const token = ref(TokenManager.get());
@@ -1233,6 +1249,7 @@ const orderStatusOptions = computed(() => [
 ]);
 
 const isAdminUser = computed(() => user.value?.role === 'admin');
+const isDarkTheme = computed(() => theme.value === 'dark');
 
 watch(
   () => route.value.page,
@@ -1415,6 +1432,16 @@ watch(
   { immediate: true },
 );
 
+watch(
+  theme,
+  (next) => {
+    document.documentElement.dataset.theme = next;
+    document.documentElement.style.colorScheme = next;
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
   window.addEventListener('hashchange', syncRoute);
   await bootstrap();
@@ -1451,6 +1478,16 @@ function setLocale(nextLocale) {
   locale.value = normalized;
   writeStoredLocale(normalized);
   void refreshLocalizedData();
+}
+
+function readStoredTheme() {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (themeOptions.has(stored)) return stored;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function toggleTheme() {
+  theme.value = isDarkTheme.value ? 'light' : 'dark';
 }
 
 async function refreshLocalizedData() {

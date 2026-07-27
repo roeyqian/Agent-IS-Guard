@@ -1,6 +1,8 @@
 :root {
   color-scheme: light;
   --bg: #eef2f7;
+  --bg-start: #f7fafc;
+  --bg-end: #eef2f7;
   --surface: #ffffff;
   --surface-soft: #f7f9fc;
   --line: #d7e0ea;
@@ -9,11 +11,88 @@
   --accent: #dc2626;
   --accent-strong: #991b1b;
   --accent-soft: #fee2e2;
+  --accent-border: #f1a9a9;
+  --accent-end: #ef4444;
   --blue: #1d4ed8;
   --amber: #d97706;
   --danger: #b42318;
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --topbar-bg: rgba(255, 255, 255, 0.9);
+  --button-bg: #ffffff;
+  --hover-line: #b8c6d4;
+  --hover-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  --active-shadow: 0 10px 25px rgba(220, 38, 38, 0.12);
+  --focus-ring: rgba(220, 38, 38, 0.12);
+  --hero-start: #fbfdff;
+  --hero-end: #f5f9fd;
+  --thumb-bg: #edf2f7;
+  --fallback-start: #e6f7f2;
+  --fallback-end: #f4f8ff;
+  --overlay-bg: rgba(15, 23, 42, 0.36);
+  --feature-overlay-bg: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.84) 100%);
+  --trend-track: #e5ecf4;
+  --status-pending-bg: #fff7ed;
+  --status-pending-text: #9a3412;
+  --status-paid-bg: #ecfeff;
+  --status-paid-text: #155e75;
+  --status-shipped-bg: #eef2ff;
+  --status-shipped-text: #3730a3;
+  --status-completed-bg: #ecfdf3;
+  --status-completed-text: #166534;
+  --status-cancelled-bg: #fef2f2;
+  --toast-error-text: #7f1d1d;
+  --toast-error-bg: #fef2f2;
+  --toast-success-text: #14532d;
+  --toast-success-bg: #ecfdf3;
   --radius: 8px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #141312;
+  --bg-start: #171514;
+  --bg-end: #0f0f10;
+  --surface: #1d1c1f;
+  --surface-soft: #252326;
+  --line: #3a363b;
+  --text: #f4f0eb;
+  --muted: #b5aca4;
+  --accent: #f87171;
+  --accent-strong: #fecaca;
+  --accent-soft: rgba(248, 113, 113, 0.16);
+  --accent-border: rgba(248, 113, 113, 0.38);
+  --accent-end: #fb7185;
+  --blue: #93c5fd;
+  --amber: #fbbf24;
+  --danger: #fca5a5;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  --topbar-bg: rgba(29, 28, 31, 0.9);
+  --button-bg: #242225;
+  --hover-line: #5d5660;
+  --hover-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+  --active-shadow: 0 10px 28px rgba(248, 113, 113, 0.16);
+  --focus-ring: rgba(248, 113, 113, 0.18);
+  --hero-start: #1f1d1b;
+  --hero-end: #25211e;
+  --thumb-bg: #302d31;
+  --fallback-start: #1b3834;
+  --fallback-end: #282f44;
+  --overlay-bg: rgba(0, 0, 0, 0.56);
+  --feature-overlay-bg: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.88) 100%);
+  --trend-track: #342f35;
+  --status-pending-bg: rgba(251, 191, 36, 0.14);
+  --status-pending-text: #fcd34d;
+  --status-paid-bg: rgba(45, 212, 191, 0.14);
+  --status-paid-text: #5eead4;
+  --status-shipped-bg: rgba(129, 140, 248, 0.16);
+  --status-shipped-text: #c4b5fd;
+  --status-completed-bg: rgba(74, 222, 128, 0.14);
+  --status-completed-text: #86efac;
+  --status-cancelled-bg: rgba(248, 113, 113, 0.14);
+  --toast-error-text: #fecaca;
+  --toast-error-bg: #3a1d22;
+  --toast-success-text: #bbf7d0;
+  --toast-success-bg: #183222;
 }
 
 * {
@@ -28,7 +107,7 @@ body,
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, #f7fafc 0%, #eef2f7 100%);
+  background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
   color: var(--text);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   letter-spacing: 0;
@@ -64,7 +143,7 @@ img {
   gap: 16px;
   align-items: center;
   padding: 14px 20px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--topbar-bg);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(10px);
 }
@@ -82,7 +161,7 @@ img {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), #ef4444);
+  background: linear-gradient(135deg, var(--accent), var(--accent-end));
   color: #fff;
   font-weight: 700;
   flex: 0 0 auto;
@@ -203,7 +282,12 @@ img {
 }
 
 .nav-chip {
-  background: #fff;
+  background: var(--button-bg);
+}
+
+.theme-toggle {
+  width: 40px;
+  padding: 0;
 }
 
 .cart-chip {
@@ -246,7 +330,7 @@ img {
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f5f9fd 100%);
+  background: linear-gradient(180deg, var(--hero-start) 0%, var(--hero-end) 100%);
   box-shadow: var(--shadow);
 }
 
@@ -313,7 +397,7 @@ img {
 }
 
 .secondary-btn {
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .secondary-btn:hover,
@@ -323,8 +407,8 @@ img {
 .product-card:hover,
 .feature-row:hover,
 .order-row:hover {
-  border-color: #b8c6d4;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  border-color: var(--hover-line);
+  box-shadow: var(--hover-shadow);
 }
 
 .hero-metrics {
@@ -340,7 +424,7 @@ img {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .metric strong,
@@ -360,7 +444,7 @@ img {
   border: 1px solid var(--line);
   border-radius: 8px;
   min-height: 280px;
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .feature-card img {
@@ -378,7 +462,7 @@ img {
   gap: 12px;
   padding: 14px 16px;
   color: #fff;
-  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.84) 100%);
+  background: var(--feature-overlay-bg);
 }
 
 .feature-list {
@@ -403,7 +487,7 @@ img {
   height: 54px;
   border-radius: 8px;
   object-fit: cover;
-  background: #edf2f7;
+  background: var(--thumb-bg);
 }
 
 .row-fallback,
@@ -505,13 +589,13 @@ img {
 }
 
 .segment {
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .segment.active {
   background: var(--accent-soft);
   color: var(--accent-strong);
-  border-color: #f1a9a9;
+  border-color: var(--accent-border);
 }
 
 .product-grid {
@@ -527,12 +611,12 @@ img {
   padding: 10px;
   text-align: left;
   min-width: 0;
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .product-card.active {
   border-color: var(--accent);
-  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.12);
+  box-shadow: var(--active-shadow);
 }
 
 .product-image-wrap {
@@ -553,7 +637,7 @@ img {
   width: 100%;
   height: 100%;
   gap: 8px;
-  background: linear-gradient(135deg, #e6f7f2, #f4f8ff);
+  background: linear-gradient(135deg, var(--fallback-start), var(--fallback-end));
 }
 
 .image-fallback.compact {
@@ -754,27 +838,27 @@ img {
 }
 
 .status.pending {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
 }
 
 .status.paid {
-  background: #ecfeff;
-  color: #155e75;
+  background: var(--status-paid-bg);
+  color: var(--status-paid-text);
 }
 
 .status.shipped {
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--status-shipped-bg);
+  color: var(--status-shipped-text);
 }
 
 .status.completed {
-  background: #ecfdf3;
-  color: #166534;
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
 }
 
 .status.cancelled {
-  background: #fef2f2;
+  background: var(--status-cancelled-bg);
   color: var(--danger);
 }
 
@@ -886,14 +970,14 @@ img {
   overflow: hidden;
   height: 10px;
   border-radius: 999px;
-  background: #e5ecf4;
+  background: var(--trend-track);
 }
 
 .trend-bar i {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), #ef4444);
+  background: linear-gradient(90deg, var(--accent), var(--accent-end));
 }
 
 .related-row,
@@ -902,7 +986,7 @@ img {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--button-bg);
   text-align: left;
 }
 
@@ -938,7 +1022,7 @@ img {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .session-row small,
@@ -972,7 +1056,7 @@ img {
   padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--button-bg);
   color: var(--text);
   outline: none;
 }
@@ -983,7 +1067,7 @@ img {
 .search-bar:focus-within,
 .select-wrap:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .check-row {
@@ -1007,7 +1091,7 @@ img {
   z-index: 40;
   display: flex;
   justify-content: flex-end;
-  background: rgba(15, 23, 42, 0.36);
+  background: var(--overlay-bg);
 }
 
 .drawer {
@@ -1085,7 +1169,7 @@ img {
   height: 30px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--button-bg);
 }
 
 .link-btn {
@@ -1125,14 +1209,14 @@ img {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--button-bg);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .chat-row.user .chat-bubble {
   background: var(--accent-soft);
-  border-color: #f1a9a9;
+  border-color: var(--accent-border);
 }
 
 .chat-form {
@@ -1166,13 +1250,13 @@ img {
 }
 
 .toast.error {
-  color: #7f1d1d;
-  background: #fef2f2;
+  color: var(--toast-error-text);
+  background: var(--toast-error-bg);
 }
 
 .toast.success {
-  color: #14532d;
-  background: #ecfdf3;
+  color: var(--toast-success-text);
+  background: var(--toast-success-bg);
 }
 
 @media (max-width: 1120px) {
