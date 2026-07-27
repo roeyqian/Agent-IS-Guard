@@ -76,11 +76,13 @@ npm run deploy
 ```bash
 npm run db:init
 npm run db:seed
+npm run db:events
+npm run db:i18n
 ```
 
 如果你在 Cloudflare 上使用了不同的数据库名，请同步调整 `worker/package.json` 里的脚本。
 
-如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql`。
+如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql` 和 `worker/src/migrations/0004_product_i18n.sql`。
 
 ## 管理员 / Admin
 

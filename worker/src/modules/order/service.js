@@ -1,8 +1,9 @@
 import { json, readJsonBody, requireStandardUser, createId } from "../../app/http.js";
-import { getProductImageUrl } from "../shop/utils.js";
+import { getLocaleFromRequest, getProductImageUrl } from "../shop/utils.js";
 
-export async function createOrder({ request, env }) {
+export async function createOrder({ request, env, url }) {
   const { session } = await requireStandardUser(request, env);
+  const locale = getLocaleFromRequest(request, url);
   const { items, shippingAddress } = await readJsonBody(request);
 
   if (!items || items.length === 0) {
@@ -18,7 +19,7 @@ export async function createOrder({ request, env }) {
 
   for (const item of items) {
     const product = await env.db.prepare(
-      "SELECT id, name, price, stock, image_url FROM products WHERE id = ?"
+      "SELECT id, name, name_en, price, stock, image_url FROM products WHERE id = ?"
     ).bind(item.productId).first();
 
     if (!product) {
@@ -26,7 +27,7 @@ export async function createOrder({ request, env }) {
     }
 
     if (product.stock < item.quantity) {
-      throw { status: 400, message: `Insufficient stock for ${product.name}` };
+      throw { status: 400, message: `Insufficient stock for ${localizedProductName(product, locale)}` };
     }
 
     const subtotal = product.price * item.quantity;
@@ -34,7 +35,7 @@ export async function createOrder({ request, env }) {
 
     orderItems.push({
       productId: product.id,
-      productName: product.name,
+      productName: localizedProductName(product, locale),
       productImage: getProductImageUrl(product.id),
       price: product.price,
       quantity: item.quantity,
@@ -86,8 +87,9 @@ export async function getOrders({ request, env }) {
   return json({ orders: results });
 }
 
-export async function getOrderById({ request, env, params }) {
+export async function getOrderById({ request, env, params, url }) {
   const { session } = await requireStandardUser(request, env);
+  const locale = getLocaleFromRequest(request, url);
 
   const order = await env.db.prepare(
     "SELECT * FROM orders WHERE id = ? AND user_id = ?"
@@ -98,7 +100,10 @@ export async function getOrderById({ request, env, params }) {
   }
 
   const { results: items } = await env.db.prepare(
-    "SELECT * FROM order_items WHERE order_id = ?"
+    `SELECT oi.*, p.name AS current_name, p.name_en AS current_name_en
+     FROM order_items oi
+     LEFT JOIN products p ON p.id = oi.product_id
+     WHERE oi.order_id = ?`
   ).bind(params.id).all();
 
   const { results: events } = await env.db.prepare(
@@ -113,11 +118,22 @@ export async function getOrderById({ request, env, params }) {
     order: {
       ...order,
       shippingAddress: JSON.parse(order.shipping_address_json),
-      items,
+      items: items.map((item) => ({
+        ...item,
+        snapshot_product_name: item.product_name,
+        product_name: localizedProductName(
+          { name: item.current_name || item.product_name, name_en: item.current_name_en },
+          locale,
+        ),
+      })),
       events: events.map((event) => ({
         ...event,
         note: event.note || '',
       })),
     }
   });
+}
+
+function localizedProductName(product, locale) {
+  return locale === 'en-US' && product.name_en ? product.name_en : product.name;
 }

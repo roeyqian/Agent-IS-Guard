@@ -1,4 +1,5 @@
 import { json, createId, readJsonBody, requireAdmin } from "../../app/http.js";
+import { getLocaleFromRequest } from "../shop/utils.js";
 
 export async function getAiConfig({ request, env }) {
   await requireAdmin(request, env);
@@ -79,13 +80,13 @@ export async function getStats({ request, env }) {
     total_products,
     total_behaviors,
     behavior_breakdown: [
-      { key: '浏览样本', value: view_product_count },
-      { key: '加入待购', value: add_cart_count },
-      { key: '移除待购', value: remove_cart_count },
-      { key: '提交决策', value: place_order_count },
-      { key: 'AI 对话', value: chat_ai_count },
-      { key: '搜索', value: search_count },
-      { key: '点击', value: click_count }
+      { key: 'view_product', value: view_product_count },
+      { key: 'add_cart', value: add_cart_count },
+      { key: 'remove_cart', value: remove_cart_count },
+      { key: 'place_order', value: place_order_count },
+      { key: 'chat_ai', value: chat_ai_count },
+      { key: 'search', value: search_count },
+      { key: 'click', value: click_count }
     ]
   });
 }
@@ -128,8 +129,9 @@ export async function getOrders({ request, env, url }) {
   });
 }
 
-export async function getOrderDetail({ request, env, params }) {
+export async function getOrderDetail({ request, env, params, url }) {
   await requireAdmin(request, env);
+  const locale = getLocaleFromRequest(request, url);
 
   const order = await env.db.prepare(`
     SELECT o.*, u.username, u.email
@@ -144,7 +146,11 @@ export async function getOrderDetail({ request, env, params }) {
 
   const [{ results: items }, { results: events }] = await Promise.all([
     env.db.prepare(
-      "SELECT * FROM order_items WHERE order_id = ? ORDER BY subtotal DESC"
+      `SELECT oi.*, p.name AS current_name, p.name_en AS current_name_en
+       FROM order_items oi
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE oi.order_id = ?
+       ORDER BY oi.subtotal DESC`
     ).bind(params.id).all(),
     env.db.prepare(
       `SELECT oe.*, u.username AS actor_name
@@ -159,13 +165,24 @@ export async function getOrderDetail({ request, env, params }) {
     order: {
       ...order,
       shippingAddress: parseJson(order.shipping_address_json, {}),
-      items,
+      items: items.map((item) => ({
+        ...item,
+        snapshot_product_name: item.product_name,
+        product_name: localizedProductName(
+          { name: item.current_name || item.product_name, name_en: item.current_name_en },
+          locale,
+        ),
+      })),
       events: events.map((event) => ({
         ...event,
         note: event.note || '',
       })),
     },
   });
+}
+
+function localizedProductName(product, locale) {
+  return locale === 'en-US' && product.name_en ? product.name_en : product.name;
 }
 
 export async function updateOrderStatus({ request, env, params }) {

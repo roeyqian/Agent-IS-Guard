@@ -146,6 +146,34 @@ img {
   justify-content: flex-end;
 }
 
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.language-btn {
+  min-width: 42px;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.language-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .nav-chip,
 .ghost-btn,
 .primary-btn,

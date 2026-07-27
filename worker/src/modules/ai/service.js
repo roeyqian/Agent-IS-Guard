@@ -2,9 +2,11 @@ import { json, readJsonBody, requireStandardUser, createId } from "../../app/htt
 import { callDeepSeek } from "./deepseek.js";
 import { getSellerPrompt } from "./seller.js";
 import { getGuardianPrompt } from "./guardian.js";
+import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
 
-export async function chat({ request, env }) {
+export async function chat({ request, env, url }) {
   const { token, session } = await requireStandardUser(request, env);
+  const locale = getLocaleFromRequest(request, url);
   const { message, aiType, productId } = await readJsonBody(request);
 
   if (!message || !aiType) {
@@ -38,7 +40,8 @@ export async function chat({ request, env }) {
 
   let productInfo = null;
   if (productId) {
-    productInfo = await env.db.prepare("SELECT * FROM products WHERE id = ?").bind(productId).first();
+    const product = await env.db.prepare("SELECT * FROM products WHERE id = ?").bind(productId).first();
+    productInfo = product ? normalizeProduct(product, locale) : null;
   }
 
   const systemPrompt = aiType === 'seller'

@@ -1,4 +1,9 @@
 const API_BASE = '/api';
+const LOCALE_STORAGE_KEY = 'shopguard_locale';
+
+function getRequestLocale() {
+  return localStorage.getItem(LOCALE_STORAGE_KEY) || navigator.language || 'zh-CN';
+}
 
 export const TokenManager = {
   get() {
@@ -28,6 +33,7 @@ async function request(url, options = {}) {
   const token = TokenManager.get();
   const headers = {
     'Content-Type': 'application/json',
+    'Accept-Language': getRequestLocale(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };

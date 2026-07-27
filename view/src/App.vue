@@ -5,43 +5,55 @@
         <span class="brand-mark">SG</span>
         <span class="brand-copy">
           <strong>ShopGuard</strong>
-          <small>消费决策研究平台</small>
+          <small>{{ t('app.subtitle') }}</small>
         </span>
       </div>
 
       <form class="search-bar" @submit.prevent="applySearch">
         <Search class="search-icon" :size="16" />
-        <input v-model="filters.q" type="search" placeholder="搜索样本、品牌、关键词" />
+        <input v-model="filters.q" type="search" :placeholder="t('common.searchPlaceholder')" />
         <button class="icon-action" type="submit">
           <ArrowRight :size="16" />
         </button>
       </form>
 
       <nav class="nav-actions">
+        <div class="language-switch" :aria-label="t('app.lang')">
+          <button
+            v-for="item in localeOptions"
+            :key="item.value"
+            class="language-btn"
+            :class="{ active: locale === item.value }"
+            type="button"
+            @click="setLocale(item.value)"
+          >
+            {{ item.label }}
+          </button>
+        </div>
         <button class="nav-chip" type="button" @click="go('products')">
           <Package2 :size="16" />
-          样本
+          {{ t('common.products') }}
         </button>
         <button v-if="!isAdminUser" class="nav-chip" type="button" @click="go('orders')">
           <Clock3 :size="16" />
-          记录
+          {{ t('common.records') }}
         </button>
         <button class="nav-chip" type="button" @click="go('admin')">
           <Settings2 :size="16" />
-          研究
+          {{ t('common.research') }}
         </button>
         <button v-if="!isAdminUser" class="nav-chip cart-chip" type="button" @click="openCart">
           <ShoppingCart :size="16" />
-          待购
+          {{ t('cart.title') }}
           <span class="badge">{{ cartCount }}</span>
         </button>
         <button v-if="user" class="nav-chip" type="button" @click="logout">
           <LogOut :size="16" />
-          退出
+          {{ t('common.logout') }}
         </button>
         <button v-else class="nav-chip" type="button" @click="openAuth('login')">
           <LogIn :size="16" />
-          登录
+          {{ t('common.login') }}
         </button>
       </nav>
     </header>
@@ -50,55 +62,55 @@
       <section v-if="page === 'products'" class="page-band">
         <div class="hero">
           <div class="hero-copy">
-            <p class="eyebrow">ShopGuard 决策研究台</p>
-            <h1>观察 AI 如何影响购买决定</h1>
+            <p class="eyebrow">{{ t('app.title') }}</p>
+            <h1>{{ t('hero.heading') }}</h1>
             <p class="hero-text">
-              在同一界面追踪样本浏览、AI 对话、待购行为与提交记录，研究冲动消费的触发点和干预效果。
+              {{ t('hero.copy') }}
             </p>
 
             <div class="hero-actions">
               <button class="primary-btn" type="button" @click="isAdminUser ? go('admin') : go('products')">
                 <Search :size="16" />
-                {{ isAdminUser ? '查看研究后台' : '开始观察' }}
+                {{ isAdminUser ? t('hero.adminCta') : t('hero.primaryCta') }}
               </button>
               <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="openAi('guardian')">
                 <ShieldCheck :size="16" />
-                打开守护 AI
+                {{ t('hero.openGuardian') }}
               </button>
               <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="go('orders')">
                 <Truck :size="16" />
-                查看记录
+                {{ t('hero.viewRecords') }}
               </button>
               <button v-else class="secondary-btn" type="button" @click="go('admin')">
                 <BarChart3 :size="16" />
-                分析用户
+                {{ t('hero.analyzeUsers') }}
               </button>
             </div>
 
             <div class="hero-metrics">
               <div class="metric">
                 <strong>{{ products.length }}</strong>
-                <span>样本</span>
+                <span>{{ t('common.products') }}</span>
               </div>
               <div class="metric">
                 <strong>{{ categories.length }}</strong>
-                <span>分类</span>
+                <span>{{ t('common.category') }}</span>
               </div>
               <div v-if="!isAdminUser" class="metric">
                 <strong>{{ cartCount }}</strong>
-                <span>待购</span>
+                <span>{{ t('cart.title') }}</span>
               </div>
               <div v-if="!isAdminUser" class="metric">
                 <strong>{{ orders.length }}</strong>
-                <span>记录</span>
+                <span>{{ t('common.records') }}</span>
               </div>
               <div v-if="isAdminUser" class="metric">
                 <strong>{{ adminStats?.total_users ?? 0 }}</strong>
-                <span>用户</span>
+                <span>{{ t('common.users') }}</span>
               </div>
               <div v-if="isAdminUser" class="metric">
                 <strong>{{ adminStats?.total_behaviors ?? 0 }}</strong>
-                <span>行为</span>
+                <span>{{ t('hero.behaviors') }}</span>
               </div>
             </div>
           </div>
@@ -112,7 +124,7 @@
               />
               <div v-else class="image-fallback">
                 <Sparkles :size="28" />
-                <span>研究样本</span>
+                <span>{{ t('hero.researchSample') }}</span>
               </div>
               <div class="feature-overlay">
                 <strong>{{ heroProduct?.name || 'ShopGuard Research' }}</strong>
@@ -144,12 +156,12 @@
           <section class="panel catalog-panel">
             <div class="panel-head">
               <div>
-                <h2>样本列表</h2>
-                <p>{{ filteredProducts.length }} 个结果</p>
+                <h2>{{ t('catalog.title') }}</h2>
+                <p>{{ t('catalog.results', { count: filteredProducts.length }) }}</p>
               </div>
               <button class="ghost-btn" type="button" @click="resetFilters">
                 <RefreshCcw :size="16" />
-                重置
+                {{ t('common.reset') }}
               </button>
             </div>
 
@@ -157,7 +169,7 @@
               <label class="select-wrap">
                 <Filter :size="16" />
                 <select v-model="filters.category">
-                  <option value="">全部分类</option>
+                  <option value="">{{ t('common.allCategories') }}</option>
                   <option v-for="item in categoryOptions" :key="item.id" :value="item.id">
                     {{ item.name }}
                   </option>
@@ -179,13 +191,13 @@
             </div>
 
             <div v-if="loading.products" class="empty-state">
-              <strong>正在加载样本...</strong>
-              <span>请稍等片刻。</span>
+              <strong>{{ t('catalog.loadingTitle') }}</strong>
+              <span>{{ t('catalog.loadingBody') }}</span>
             </div>
 
             <div v-else-if="!filteredProducts.length" class="empty-state">
-              <strong>没有找到匹配的样本</strong>
-              <span>换个关键词或分类再试试。</span>
+              <strong>{{ t('catalog.emptyTitle') }}</strong>
+              <span>{{ t('catalog.emptyBody') }}</span>
             </div>
 
             <div v-else class="product-grid">
@@ -216,8 +228,8 @@
                   <p>{{ product.subtitle || product.description || ' ' }}</p>
                   <div class="product-meta">
                     <span>{{ categoryName(product.category_id) }}</span>
-                    <span>评分 {{ Number(product.rating || 0).toFixed(1) }}</span>
-                    <span>库存 {{ Number(product.stock || 0) }}</span>
+                    <span>{{ t('detail.rating') }} {{ Number(product.rating || 0).toFixed(1) }}</span>
+                    <span>{{ t('detail.stock') }} {{ Number(product.stock || 0) }}</span>
                   </div>
                 </div>
               </button>
@@ -233,7 +245,7 @@
                 </div>
                 <button v-if="!isAdminUser" class="ghost-btn" type="button" @click="openAi('seller', selectedProduct)">
                   <MessageSquareMore :size="16" />
-                  问促销 AI
+                  {{ t('detail.askSeller') }}
                 </button>
               </div>
 
@@ -258,50 +270,50 @@
 
               <div class="detail-metrics">
                 <div>
-                  <label>评分</label>
+                  <label>{{ t('detail.rating') }}</label>
                   <strong>{{ Number(selectedProduct.rating || 0).toFixed(1) }}</strong>
                 </div>
                 <div>
-                  <label>库存</label>
+                  <label>{{ t('detail.stock') }}</label>
                   <strong>{{ Number(selectedProduct.stock || 0) }}</strong>
                 </div>
                 <div>
-                  <label>销量</label>
+                  <label>{{ t('detail.sales') }}</label>
                   <strong>{{ Number(selectedProduct.sales || 0) }}</strong>
                 </div>
                 <div>
-                  <label>分类</label>
+                  <label>{{ t('common.category') }}</label>
                   <strong>{{ categoryName(selectedProduct.category_id) }}</strong>
                 </div>
               </div>
 
               <p class="detail-text">
-                {{ selectedProduct.description || selectedProduct.subtitle || '暂无描述。' }}
+                {{ selectedProduct.description || selectedProduct.subtitle || t('detail.noDescription') }}
               </p>
 
               <div v-if="!isAdminUser" class="detail-actions">
                 <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
                   <ShoppingCart :size="16" />
-                  加入待购清单
+                  {{ t('detail.addToCart') }}
                 </button>
                 <button class="secondary-btn" type="button" @click="openAi('guardian', selectedProduct)">
                   <ShieldCheck :size="16" />
-                  守护建议
+                  {{ t('detail.guardianAdvice') }}
                 </button>
                 <button class="secondary-btn" type="button" @click="setPage('checkout')">
                   <CreditCard :size="16" />
-                  进入决策
+                  {{ t('detail.enterDecision') }}
                 </button>
               </div>
 
               <div v-else class="detail-actions">
                 <button class="primary-btn" type="button" @click="go('admin')">
                   <BarChart3 :size="16" />
-                  分析用户行为
+                  {{ t('detail.adminAnalyze') }}
                 </button>
                 <button class="secondary-btn" type="button" @click="loadProductInsights(selectedProduct.id)">
                   <RefreshCcw :size="16" />
-                  刷新洞察
+                  {{ t('detail.refreshInsights') }}
                 </button>
               </div>
 
@@ -315,63 +327,63 @@
               <div class="insight-panel">
                 <div class="panel-head">
                   <div>
-                    <h2>样本洞察</h2>
-                    <p>{{ productInsightsLoading ? '正在计算研究信号' : '基于行为追踪和对话记录' }}</p>
+                    <h2>{{ t('insights.title') }}</h2>
+                    <p>{{ productInsightsLoading ? t('insights.calculating') : t('insights.basedOnSignals') }}</p>
                   </div>
                   <button class="ghost-btn" type="button" @click="loadProductInsights(selectedProduct.id)">
                     <RefreshCcw :size="16" />
-                    刷新
+                    {{ t('common.refresh') }}
                   </button>
                 </div>
 
                 <div v-if="productInsightsLoading" class="empty-state compact">
-                  <strong>加载中...</strong>
-                  <span>正在汇总样本行为。</span>
+                  <strong>{{ t('common.loading') }}</strong>
+                  <span>{{ t('insights.loadingBody') }}</span>
                 </div>
 
                 <template v-else-if="productInsightSummary">
                   <div class="insight-grid">
                     <div class="insight-stat">
                       <strong>{{ productInsightSummary.views }}</strong>
-                      <span>浏览</span>
+                      <span>{{ t('common.views') }}</span>
                     </div>
                     <div class="insight-stat">
                       <strong>{{ productInsightSummary.addToCart }}</strong>
-                      <span>加购</span>
+                      <span>{{ t('insights.addToCart') }}</span>
                     </div>
                     <div class="insight-stat">
                       <strong>{{ productInsightSummary.orders }}</strong>
-                      <span>下单</span>
+                      <span>{{ t('insights.orders') }}</span>
                     </div>
                     <div class="insight-stat">
                       <strong>{{ formatMoney(productInsightSummary.revenue) }}</strong>
-                      <span>贡献</span>
+                      <span>{{ t('common.contribution') }}</span>
                     </div>
                     <div class="insight-stat">
                       <strong>{{ productInsightSummary.recentSessions }}</strong>
-                      <span>会话</span>
+                      <span>{{ t('insights.recentSessions') }}</span>
                     </div>
                     <div class="insight-stat">
                       <strong>{{ productInsightSummary.conversionRate }}%</strong>
-                      <span>转化</span>
+                      <span>{{ t('insights.conversion') }}</span>
                     </div>
                   </div>
 
                   <div class="insight-chips">
                     <span v-for="item in productInsightSummary.aiUsage" :key="item.aiType" class="status pending">
-                      {{ item.aiType === 'seller' ? '促销 AI' : '守护 AI' }} {{ item.value }}
+                      {{ aiTypeLabel(item.aiType) }} {{ item.value }}
                     </span>
                   </div>
 
                   <div v-if="productInsightRecentBehaviors.length" class="timeline compact">
                     <div class="timeline-head">
-                      <strong>最近行为</strong>
-                      <span>{{ productInsightRecentBehaviors.length }} 条</span>
+                      <strong>{{ t('insights.recentBehaviors') }}</strong>
+                      <span>{{ t('common.recordsCount', { count: productInsightRecentBehaviors.length }) }}</span>
                     </div>
                     <div v-for="item in productInsightRecentBehaviors" :key="`${item.timestamp}-${item.session_id}`" class="timeline-row">
                       <div class="timeline-dot"></div>
                       <div class="timeline-copy">
-                        <strong>{{ item.behavior_type }}</strong>
+                        <strong>{{ behaviorLabel(item.behavior_type) }}</strong>
                         <span>{{ item.username || item.session_id }}</span>
                       </div>
                       <small>{{ item.timestamp }}</small>
@@ -398,8 +410,8 @@
             </template>
 
             <div v-else class="empty-state tall">
-              <strong>请选择一个样本</strong>
-              <span>左侧列表里任意点一个就行。</span>
+              <strong>{{ t('detail.noSelectionTitle') }}</strong>
+              <span>{{ t('detail.noSelectionBody') }}</span>
             </div>
           </aside>
         </div>
@@ -408,25 +420,25 @@
       <section v-else-if="page === 'orders'" class="page-band">
         <div class="panel page-header">
           <div>
-            <h1>决策记录</h1>
-            <p>查看历史下单、交互与行为摘要。</p>
+            <h1>{{ t('orders.title') }}</h1>
+            <p>{{ t('orders.subtitle') }}</p>
           </div>
           <button class="ghost-btn" type="button" @click="loadOrders">
             <RefreshCcw :size="16" />
-            刷新
+            {{ t('common.refresh') }}
           </button>
         </div>
 
         <div class="content-grid">
           <section class="panel list-panel">
             <div v-if="loading.orders" class="empty-state">
-              <strong>正在加载记录...</strong>
-              <span>请稍等片刻。</span>
+              <strong>{{ t('orders.loadingTitle') }}</strong>
+              <span>{{ t('orders.loadingBody') }}</span>
             </div>
 
             <div v-else-if="!orders.length" class="empty-state">
-              <strong>暂无记录</strong>
-              <span>完成一次决策后会出现在这里。</span>
+              <strong>{{ t('orders.emptyTitle') }}</strong>
+              <span>{{ t('orders.emptyBody') }}</span>
             </div>
 
             <div v-else class="order-list">
@@ -459,25 +471,25 @@
                 </div>
                 <button v-if="!isAdminUser" class="ghost-btn" type="button" @click="openCart">
                   <ShoppingCart :size="16" />
-                  打开待购清单
+                  {{ t('orders.openCart') }}
                 </button>
               </div>
 
               <div class="detail-metrics">
                 <div>
-                  <label>时间</label>
+                  <label>{{ t('common.time') }}</label>
                   <strong>{{ selectedOrderView.created_at || '-' }}</strong>
                 </div>
                 <div>
-                  <label>金额</label>
+                  <label>{{ t('common.money') }}</label>
                   <strong>{{ formatMoney(selectedOrderView.final_amount || selectedOrderView.total_amount) }}</strong>
                 </div>
                 <div>
-                  <label>收货人</label>
+                  <label>{{ t('orders.recipient') }}</label>
                   <strong>{{ selectedOrderView.shippingAddress?.name || '-' }}</strong>
                 </div>
                 <div>
-                  <label>电话</label>
+                  <label>{{ t('orders.telephone') }}</label>
                   <strong>{{ selectedOrderView.shippingAddress?.phone || '-' }}</strong>
                 </div>
               </div>
@@ -490,7 +502,7 @@
                 <div v-for="item in selectedOrderView.items || []" :key="item.id || item.productId" class="order-item">
                   <div>
                     <strong>{{ item.name || item.product_name || item.productId }}</strong>
-                    <span>数量 x {{ item.quantity || 1 }}</span>
+                    <span>{{ t('common.quantity', { count: item.quantity || 1 }) }}</span>
                   </div>
                   <strong>{{ formatMoney((item.price || 0) * (item.quantity || 1)) }}</strong>
                 </div>
@@ -498,8 +510,8 @@
 
               <div v-if="selectedOrderView.events?.length" class="timeline">
                 <div class="timeline-head">
-                  <strong>状态轨迹</strong>
-                  <span>{{ selectedOrderView.events.length }} 条记录</span>
+                  <strong>{{ t('orders.statusTimeline') }}</strong>
+                  <span>{{ t('common.recordsCount', { count: selectedOrderView.events.length }) }}</span>
                 </div>
                 <div v-for="event in selectedOrderView.events" :key="event.id" class="timeline-row">
                   <div class="timeline-dot"></div>
@@ -513,8 +525,8 @@
             </template>
 
             <div v-else class="empty-state tall">
-              <strong>选一条记录</strong>
-              <span>右侧会显示详细收货和样本清单。</span>
+              <strong>{{ t('orders.selectTitle') }}</strong>
+              <span>{{ t('orders.selectBody') }}</span>
             </div>
           </aside>
         </div>
@@ -523,21 +535,21 @@
       <section v-else-if="page === 'admin'" class="page-band">
         <div class="panel page-header">
           <div>
-            <h1>研究后台</h1>
-            <p>AI 配置、行为统计与研究摘要。</p>
+            <h1>{{ t('admin.title') }}</h1>
+            <p>{{ t('admin.subtitle') }}</p>
           </div>
           <button class="ghost-btn" type="button" @click="loadAdmin">
             <RefreshCcw :size="16" />
-            刷新
+            {{ t('common.refresh') }}
           </button>
         </div>
 
         <div v-if="!isAdminUser" class="panel empty-panel">
-          <strong>需要管理员账号</strong>
-          <span>登录后才能查看研究统计和配置。</span>
+          <strong>{{ t('admin.requireAdminTitle') }}</strong>
+          <span>{{ t('admin.requireAdminBody') }}</span>
           <button class="primary-btn" type="button" @click="openAuth('login')">
             <LogIn :size="16" />
-            去登录
+            {{ t('common.login') }}
           </button>
         </div>
 
@@ -553,8 +565,8 @@
             <section class="panel">
               <div class="panel-head">
                 <div>
-                  <h2>AI 配置</h2>
-                  <p>保存促销型 AI 和守护 AI 的参数。</p>
+                  <h2>{{ t('admin.aiConfigTitle') }}</h2>
+                  <p>{{ t('admin.aiConfigSubtitle') }}</p>
                 </div>
               </div>
 
@@ -567,7 +579,7 @@
                     required
                     :placeholder="
                       adminConfig?.has_api_key
-                        ? '已保存，修改时请重新输入完整密钥'
+                        ? t('admin.apiKeySaved')
                         : 'sk-...'
                     "
                   />
@@ -585,18 +597,18 @@
 
                 <label class="check-row">
                   <input v-model="adminForm.seller_ai_enabled" type="checkbox" />
-                  <span>启用促销型 AI</span>
+                  <span>{{ t('admin.enableSeller') }}</span>
                 </label>
 
                 <label class="check-row">
                   <input v-model="adminForm.guardian_ai_enabled" type="checkbox" />
-                  <span>启用守护 AI</span>
+                  <span>{{ t('admin.enableGuardian') }}</span>
                 </label>
 
                 <div class="form-actions">
                   <button class="primary-btn" type="submit">
                     <Settings2 :size="16" />
-                    保存配置
+                    {{ t('admin.saveConfig') }}
                   </button>
                 </div>
               </form>
@@ -605,27 +617,27 @@
             <aside class="panel">
               <div class="panel-head">
                 <div>
-                  <h2>状态</h2>
-                  <p>最近一次读取的研究摘要。</p>
+                  <h2>{{ t('admin.statusTitle') }}</h2>
+                  <p>{{ t('admin.statusSubtitle') }}</p>
                 </div>
               </div>
 
               <div class="admin-notes">
                 <div class="note-row">
                   <UserRound :size="16" />
-                  <span>{{ user?.username || user?.email || '当前未登录' }}</span>
+                  <span>{{ user?.username || user?.email || t('common.currentNotLoggedIn') }}</span>
                 </div>
                 <div class="note-row">
                   <ShieldCheck :size="16" />
-                  <span>{{ isAdminUser ? '管理员权限已开启' : '无管理员权限' }}</span>
+                  <span>{{ isAdminUser ? t('admin.statusEnabled') : t('admin.noAccess') }}</span>
                 </div>
                 <div class="note-row">
                   <MessageSquareMore :size="16" />
-                  <span>AI 助手、行为追踪和记录共用同一套后端接口。</span>
+                  <span>{{ t('admin.aiSharedBackend') }}</span>
                 </div>
                 <div v-for="item in behaviorBreakdown" :key="item.key" class="note-row">
                   <BarChart3 :size="16" />
-                  <span>{{ item.key }}</span>
+                  <span>{{ behaviorLabel(item.key) }}</span>
                   <strong>{{ item.value }}</strong>
                 </div>
               </div>
@@ -636,27 +648,27 @@
             <section class="panel">
               <div class="panel-head">
                 <div>
-                  <h2>研究摘要</h2>
-                  <p>过去 7 天的行为和对话信号。</p>
+                  <h2>{{ t('admin.summaryTitle') }}</h2>
+                  <p>{{ t('admin.summarySubtitle') }}</p>
                 </div>
               </div>
 
               <div class="research-grid">
                 <div class="research-stat">
                   <strong>{{ researchTotals.todayBehaviors ?? 0 }}</strong>
-                  <span>今日行为</span>
+                  <span>{{ t('admin.todayBehaviors') }}</span>
                 </div>
                 <div class="research-stat">
                   <strong>{{ researchTotals.todayConversations ?? 0 }}</strong>
-                  <span>今日对话</span>
+                  <span>{{ t('admin.todayConversations') }}</span>
                 </div>
                 <div class="research-stat">
                   <strong>{{ researchTotals.sessions ?? 0 }}</strong>
-                  <span>会话数</span>
+                  <span>{{ t('admin.sessions') }}</span>
                 </div>
                 <div class="research-stat">
                   <strong>{{ formatMoney(researchTotals.revenue ?? 0) }}</strong>
-                  <span>累计收入</span>
+                  <span>{{ t('admin.totalRevenue') }}</span>
                 </div>
               </div>
 
@@ -664,7 +676,7 @@
                 <div v-for="item in researchDailyBehavior" :key="item.day" class="trend-row">
                   <div class="trend-label">
                     <strong>{{ item.day }}</strong>
-                    <span>{{ item.value }} 次行为</span>
+                    <span>{{ t('admin.behaviorCount', { count: item.value }) }}</span>
                   </div>
                   <div class="trend-bar">
                     <i :style="{ width: `${Math.min(100, item.value * 8)}%` }"></i>
@@ -676,10 +688,10 @@
                 <div v-for="item in researchTopProducts" :key="item.id" class="insight-row">
                   <div>
                     <strong>{{ item.name }}</strong>
-                    <span>{{ formatMoney(item.price) }} · {{ item.view_count }} 次浏览</span>
+                    <span>{{ formatMoney(item.price) }} · {{ t('admin.productViews', { count: item.view_count }) }}</span>
                   </div>
                   <button class="link-btn" type="button" @click="pickProduct(item.id)">
-                    查看
+                    {{ t('common.view') }}
                   </button>
                 </div>
               </div>
@@ -688,7 +700,7 @@
                 <div v-for="item in researchRecentSessions" :key="item.session_id" class="session-row">
                   <div>
                     <strong>{{ item.session_id }}</strong>
-                    <span>{{ item.event_count }} 条事件 · {{ item.user_count }} 名用户</span>
+                    <span>{{ t('admin.eventCount', { events: item.event_count, users: item.user_count }) }}</span>
                   </div>
                   <small>{{ item.last_seen }}</small>
                 </div>
@@ -696,7 +708,7 @@
 
               <div v-if="researchAiUsage.length" class="insight-chips">
                 <span v-for="item in researchAiUsage" :key="item.aiType" class="status pending">
-                  {{ item.aiType === 'seller' ? '促销 AI' : '守护 AI' }} {{ item.value }}
+                  {{ aiTypeLabel(item.aiType) }} {{ item.value }}
                 </span>
               </div>
             </section>
@@ -704,12 +716,12 @@
             <aside class="panel">
               <div class="panel-head">
                 <div>
-                  <h2>订单管理</h2>
-                  <p>查看最近订单并调整状态。</p>
+                  <h2>{{ t('admin.ordersTitle') }}</h2>
+                  <p>{{ t('admin.ordersSubtitle') }}</p>
                 </div>
                 <button class="ghost-btn" type="button" @click="loadAdmin">
                   <RefreshCcw :size="16" />
-                  刷新
+                  {{ t('common.refresh') }}
                 </button>
               </div>
 
@@ -734,26 +746,26 @@
               </div>
 
               <div v-else class="empty-state compact">
-                <strong>暂无订单</strong>
-                <span>等到有新的提交记录后，这里会出现。</span>
+                <strong>{{ t('admin.noOrdersTitle') }}</strong>
+                <span>{{ t('admin.noOrdersBody') }}</span>
               </div>
 
               <div v-if="adminOrderDetailView" class="admin-order-detail">
                 <div class="detail-metrics compact">
                   <div>
-                    <label>买家</label>
+                    <label>{{ t('common.buyer') }}</label>
                     <strong>{{ adminOrderDetailView.username || adminOrderDetailView.email || '-' }}</strong>
                   </div>
                   <div>
-                    <label>商品</label>
+                    <label>{{ t('admin.items') }}</label>
                     <strong>{{ adminOrderDetailView.items?.length || 0 }}</strong>
                   </div>
                   <div>
-                    <label>金额</label>
+                    <label>{{ t('common.money') }}</label>
                     <strong>{{ formatMoney(adminOrderDetailView.final_amount || adminOrderDetailView.total_amount) }}</strong>
                   </div>
                   <div>
-                    <label>状态</label>
+                    <label>{{ t('common.status') }}</label>
                     <strong>{{ statusLabel(adminOrderDetailView.status) }}</strong>
                   </div>
                 </div>
@@ -766,7 +778,7 @@
                   <div v-for="item in adminOrderDetailView.items || []" :key="item.id" class="order-item">
                     <div>
                       <strong>{{ item.product_name }}</strong>
-                      <span>数量 x {{ item.quantity }}</span>
+                      <span>{{ t('common.quantity', { count: item.quantity }) }}</span>
                     </div>
                     <strong>{{ formatMoney(item.subtotal) }}</strong>
                   </div>
@@ -774,7 +786,7 @@
 
                 <div class="form-grid compact-order-form">
                   <label class="field full">
-                    <span>状态</span>
+                    <span>{{ t('common.status') }}</span>
                     <select v-model="adminOrderForm.status">
                       <option v-for="item in orderStatusOptions" :key="item.value" :value="item.value">
                         {{ item.label }}
@@ -782,7 +794,7 @@
                     </select>
                   </label>
                   <label class="field full">
-                    <span>备注</span>
+                    <span>{{ t('common.note') }}</span>
                     <textarea v-model="adminOrderForm.note" rows="3"></textarea>
                   </label>
                 </div>
@@ -790,14 +802,14 @@
                 <div class="form-actions">
                   <button class="primary-btn" type="button" @click="saveAdminOrderStatus">
                     <Settings2 :size="16" />
-                    保存状态
+                    {{ t('admin.saveStatus') }}
                   </button>
                 </div>
 
                 <div v-if="adminOrderDetailView.events?.length" class="timeline compact">
                   <div class="timeline-head">
-                    <strong>订单事件</strong>
-                    <span>{{ adminOrderDetailView.events.length }} 条记录</span>
+                    <strong>{{ t('admin.events') }}</strong>
+                    <span>{{ t('common.recordsCount', { count: adminOrderDetailView.events.length }) }}</span>
                   </div>
                   <div v-for="event in adminOrderDetailView.events" :key="event.id" class="timeline-row">
                     <div class="timeline-dot"></div>
@@ -817,21 +829,21 @@
       <section v-else-if="page === 'checkout'" class="page-band">
         <div class="panel page-header">
           <div>
-            <h1>确认决策</h1>
-            <p>填写收货信息后提交。</p>
+            <h1>{{ t('checkout.title') }}</h1>
+            <p>{{ t('checkout.subtitle') }}</p>
           </div>
           <button class="ghost-btn" type="button" @click="go('products')">
             <ArrowLeft :size="16" />
-            返回样本
+            {{ t('common.backProducts') }}
           </button>
         </div>
 
         <div v-if="!cart.length" class="panel empty-panel">
-          <strong>待购清单为空</strong>
-          <span>先挑几件样本再来确认。</span>
+          <strong>{{ t('checkout.emptyTitle') }}</strong>
+          <span>{{ t('checkout.emptyBody') }}</span>
           <button class="primary-btn" type="button" @click="go('products')">
             <Package2 :size="16" />
-            去看看样本
+            {{ t('checkout.goBrowse') }}
           </button>
         </div>
 
@@ -839,36 +851,36 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h2>收货信息</h2>
-                <p>提交前确认联系人和地址。</p>
+                <h2>{{ t('checkout.shippingInfo') }}</h2>
+                <p>{{ t('checkout.shippingSubtitle') }}</p>
               </div>
             </div>
 
             <form class="form-grid" @submit.prevent="submitOrder">
               <label class="field">
-                <span>收货人</span>
+                <span>{{ t('checkout.recipient') }}</span>
                 <input v-model="checkoutForm.name" type="text" required />
               </label>
 
               <label class="field">
-                <span>手机号</span>
+                <span>{{ t('checkout.phone') }}</span>
                 <input v-model="checkoutForm.phone" type="tel" required />
               </label>
 
               <label class="field full">
-                <span>收货地址</span>
+                <span>{{ t('checkout.address') }}</span>
                 <input v-model="checkoutForm.address" type="text" required />
               </label>
 
               <label class="field full">
-                <span>备注</span>
+                <span>{{ t('common.note') }}</span>
                 <textarea v-model="checkoutForm.remark" rows="4"></textarea>
               </label>
 
               <div class="form-actions">
                 <button class="primary-btn" type="submit">
                   <CreditCard :size="16" />
-                  提交决策
+                  {{ t('checkout.submit') }}
                 </button>
               </div>
             </form>
@@ -877,8 +889,8 @@
           <aside class="panel">
             <div class="panel-head">
               <div>
-                <h2>待购摘要</h2>
-                <p>{{ cartCount }} 项待购</p>
+                <h2>{{ t('checkout.summary') }}</h2>
+                <p>{{ t('common.itemsCount', { count: cartCount }) }}</p>
               </div>
             </div>
 
@@ -886,7 +898,7 @@
               <div v-for="item in cart" :key="item.id" class="cart-line">
                 <div>
                   <strong>{{ item.name || item.product_name || item.product_id }}</strong>
-                  <span>数量 x {{ item.quantity }}</span>
+                  <span>{{ t('common.quantity', { count: item.quantity }) }}</span>
                 </div>
                 <strong>{{ formatMoney((item.price || 0) * (item.quantity || 1)) }}</strong>
               </div>
@@ -894,7 +906,7 @@
 
             <div class="detail-price total-line">
               <strong>{{ formatMoney(cartTotal) }}</strong>
-              <span>合计</span>
+              <span>{{ t('common.total') }}</span>
             </div>
           </aside>
         </div>
@@ -905,8 +917,8 @@
       <aside class="drawer">
         <div class="drawer-head">
           <div>
-            <strong>待购清单</strong>
-            <span>{{ cartCount }} 项待购</span>
+            <strong>{{ t('cart.title') }}</strong>
+            <span>{{ t('common.itemsCount', { count: cartCount }) }}</span>
           </div>
           <button class="icon-close" type="button" @click="closeCart">
             <X :size="18" />
@@ -915,8 +927,8 @@
 
         <div class="drawer-body">
           <div v-if="!cart.length" class="empty-state">
-            <strong>待购清单为空</strong>
-            <span>先从样本列表里挑几件。</span>
+            <strong>{{ t('cart.emptyTitle') }}</strong>
+            <span>{{ t('cart.emptyBody') }}</span>
           </div>
 
           <div v-else class="cart-list">
@@ -935,7 +947,7 @@
                     <Plus :size="14" />
                   </button>
                   <button type="button" class="link-btn" @click="removeCartItem(item)">
-                    移除
+                    {{ t('cart.remove') }}
                   </button>
                 </div>
               </div>
@@ -946,11 +958,11 @@
         <div class="drawer-foot">
           <div class="detail-price total-line">
             <strong>{{ formatMoney(cartTotal) }}</strong>
-            <span>合计</span>
+            <span>{{ t('common.total') }}</span>
           </div>
           <button class="primary-btn" type="button" @click="openCheckout">
             <CreditCard :size="16" />
-            去确认
+            {{ t('cart.toCheckout') }}
           </button>
         </div>
       </aside>
@@ -960,7 +972,7 @@
       <aside class="drawer ai-drawer">
         <div class="drawer-head">
           <div>
-            <strong>研究 AI</strong>
+            <strong>{{ t('ai.title') }}</strong>
             <span>{{ aiContextLabel }}</span>
           </div>
           <button class="icon-close" type="button" @click="closeAi">
@@ -975,7 +987,7 @@
             type="button"
             @click="switchAi('seller')"
           >
-            促销型
+            {{ t('common.sellerType') }}
           </button>
           <button
             class="segment"
@@ -983,14 +995,14 @@
             type="button"
             @click="switchAi('guardian')"
           >
-            守护型
+            {{ t('common.guardianType') }}
           </button>
         </div>
 
         <div ref="aiMessagesEl" class="drawer-body ai-body">
           <div v-if="!aiHistory[aiType].length" class="empty-state">
-            <strong>开始对话吧</strong>
-            <span>你可以先问问这个样本值不值得加入待购清单。</span>
+            <strong>{{ t('ai.emptyTitle') }}</strong>
+            <span>{{ t('ai.emptyBody') }}</span>
           </div>
 
           <div v-else class="chat-list">
@@ -1009,11 +1021,11 @@
           <input
             v-model="aiMessage"
             type="text"
-            :placeholder="aiType === 'seller' ? '向促销型 AI 提问...' : '向守护型 AI 提问...'"
+            :placeholder="aiType === 'seller' ? t('ai.chatPlaceholderSeller') : t('ai.chatPlaceholderGuardian')"
           />
           <button class="primary-btn" type="submit" :disabled="aiSending || !aiMessage.trim()">
             <MessageSquareMore :size="16" />
-            发送
+            {{ t('ai.send') }}
           </button>
         </form>
       </aside>
@@ -1023,8 +1035,8 @@
       <aside class="drawer auth-drawer">
         <div class="drawer-head">
           <div>
-            <strong>{{ authMode === 'login' ? '登录' : '注册' }}</strong>
-            <span>ShopGuard 研究账户</span>
+            <strong>{{ authMode === 'login' ? t('common.login') : t('common.register') }}</strong>
+            <span>{{ t('auth.account') }}</span>
           </div>
           <button class="icon-close" type="button" @click="closeAuth">
             <X :size="18" />
@@ -1038,7 +1050,7 @@
             type="button"
             @click="authMode = 'login'"
           >
-            登录
+            {{ t('common.login') }}
           </button>
           <button
             class="segment"
@@ -1046,28 +1058,28 @@
             type="button"
             @click="authMode = 'register'"
           >
-            注册
+            {{ t('common.register') }}
           </button>
         </div>
 
         <form class="form-grid auth-form" @submit.prevent="submitAuth">
           <label v-if="authMode === 'register'" class="field full">
-            <span>邮箱</span>
+            <span>{{ t('common.email') }}</span>
             <input v-model="authForm.email" type="email" required />
           </label>
           <label class="field full">
-            <span>用户名</span>
+            <span>{{ t('common.username') }}</span>
             <input v-model="authForm.username" type="text" required />
           </label>
           <label class="field full">
-            <span>密码</span>
+            <span>{{ t('common.password') }}</span>
             <input v-model="authForm.password" type="password" required />
           </label>
 
           <div class="form-actions">
             <button class="primary-btn" type="submit">
               <LogIn :size="16" />
-              {{ authMode === 'login' ? '登录' : '注册' }}
+              {{ authMode === 'login' ? t('common.login') : t('common.register') }}
             </button>
           </div>
         </form>
@@ -1095,6 +1107,13 @@ import {
   TokenManager,
 } from '@/api.js';
 import {
+  DEFAULT_LOCALE,
+  localeOptions,
+  messages,
+  readStoredLocale,
+  writeStoredLocale,
+} from '@/i18n.js';
+import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
@@ -1105,7 +1124,6 @@ import {
   Layers3,
   LogIn,
   LogOut,
-  MapPin,
   MessageSquareMore,
   Minus,
   Package2,
@@ -1116,7 +1134,6 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sparkles,
-  Star,
   Truck,
   UserRound,
   X,
@@ -1124,6 +1141,7 @@ import {
 
 const route = ref(readRoute());
 const page = computed(() => route.value.page);
+const locale = ref(readStoredLocale());
 
 const user = ref(TokenManager.getUser());
 const token = ref(TokenManager.get());
@@ -1198,21 +1216,21 @@ const checkoutForm = reactive({
 
 const toasts = ref([]);
 
-const sortOptions = [
-  { value: 'hot', label: '综合' },
-  { value: 'price_asc', label: '价格 ↑' },
-  { value: 'price_desc', label: '价格 ↓' },
-  { value: 'rating', label: '评分' },
-  { value: 'newest', label: '最新' },
-];
+const sortOptions = computed(() => [
+  { value: 'hot', label: t('sort.hot') },
+  { value: 'price_asc', label: t('sort.priceAsc') },
+  { value: 'price_desc', label: t('sort.priceDesc') },
+  { value: 'rating', label: t('sort.rating') },
+  { value: 'newest', label: t('common.latest') },
+]);
 
-const orderStatusOptions = [
-  { value: 'pending', label: '待支付' },
-  { value: 'paid', label: '已支付' },
-  { value: 'shipped', label: '已发货' },
-  { value: 'completed', label: '已完成' },
-  { value: 'cancelled', label: '已取消' },
-];
+const orderStatusOptions = computed(() => [
+  { value: 'pending', label: t('common.pending') },
+  { value: 'paid', label: t('status.paid') },
+  { value: 'shipped', label: t('common.shipped') },
+  { value: 'completed', label: t('common.completed') },
+  { value: 'cancelled', label: t('status.cancelled') },
+]);
 
 const isAdminUser = computed(() => user.value?.role === 'admin');
 
@@ -1317,7 +1335,7 @@ const cartTotal = computed(() =>
 const categoryOptions = computed(() =>
   categories.value.map((item) => ({
     id: item.id || item.name,
-    name: item.name || item.id,
+    name: categoryName(item.id || item.name),
   })),
 );
 
@@ -1365,17 +1383,17 @@ const selectedOrderView = computed(() => selectedOrderDetail.value || selectedOr
 
 const aiContextLabel = computed(() => {
   const product = products.value.find((item) => item.id === aiProductId.value) || selectedProduct.value;
-  return product ? `当前样本：${product.name}` : '当前样本：未选择';
+  return product ? t('ai.contextProduct', { name: product.name }) : t('ai.contextNone');
 });
 
 const behaviorBreakdown = computed(() => adminStats.value?.behavior_breakdown || []);
 const adminStatCards = computed(() => [
-  { label: '用户', value: adminStats.value?.total_users ?? 0 },
-  { label: '样本', value: adminStats.value?.total_products ?? 0 },
-  { label: '记录', value: adminStats.value?.total_orders ?? 0 },
-  { label: '收入', value: formatMoney(adminStats.value?.total_revenue ?? 0) },
-  { label: '对话', value: adminStats.value?.total_conversations ?? 0 },
-  { label: '行为', value: adminStats.value?.total_behaviors ?? 0 },
+  { label: t('common.users'), value: adminStats.value?.total_users ?? 0 },
+  { label: t('common.products'), value: adminStats.value?.total_products ?? 0 },
+  { label: t('common.records'), value: adminStats.value?.total_orders ?? 0 },
+  { label: t('common.revenue'), value: formatMoney(adminStats.value?.total_revenue ?? 0) },
+  { label: t('common.ai'), value: adminStats.value?.total_conversations ?? 0 },
+  { label: t('hero.behaviors'), value: adminStats.value?.total_behaviors ?? 0 },
 ]);
 const productInsightSummary = computed(() => productInsights.value?.summary || null);
 const productInsightRecentBehaviors = computed(() => productInsights.value?.recentBehaviors || []);
@@ -1386,6 +1404,16 @@ const researchDailyBehavior = computed(() => researchSummary.value?.dailyBehavio
 const researchRecentSessions = computed(() => researchSummary.value?.recentSessions || []);
 const researchAiUsage = computed(() => researchSummary.value?.aiUsage || []);
 const adminOrderDetailView = computed(() => selectedAdminOrderDetail.value || null);
+
+watch(
+  locale,
+  (next) => {
+    writeStoredLocale(next);
+    document.documentElement.lang = next;
+    document.title = t('app.title');
+  },
+  { immediate: true },
+);
 
 onMounted(async () => {
   window.addEventListener('hashchange', syncRoute);
@@ -1404,7 +1432,45 @@ async function bootstrap() {
   if (isAdminUser.value && page.value === 'admin') {
     await loadAdmin();
   }
-  document.title = 'ShopGuard 决策研究台';
+  document.title = t('app.title');
+}
+
+function t(key, params = {}) {
+  const dictionary = messages[locale.value] || messages[DEFAULT_LOCALE];
+  const fallback = messages[DEFAULT_LOCALE][key] || key;
+  const template = dictionary[key] || fallback;
+  return Object.entries(params).reduce(
+    (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+    template,
+  );
+}
+
+function setLocale(nextLocale) {
+  const normalized = messages[nextLocale] ? nextLocale : DEFAULT_LOCALE;
+  if (locale.value === normalized) return;
+  locale.value = normalized;
+  writeStoredLocale(normalized);
+  void refreshLocalizedData();
+}
+
+async function refreshLocalizedData() {
+  const tasks = [loadCategories(), loadProducts()];
+  if (isAdminUser.value) {
+    tasks.push(loadAdmin());
+  } else {
+    tasks.push(loadCart());
+    if (page.value === 'orders') tasks.push(loadOrders());
+  }
+  await Promise.all(tasks);
+  if (selectedProductId.value) {
+    await loadProductInsights(selectedProductId.value);
+  }
+  if (selectedOrderId.value && page.value === 'orders') {
+    await loadOrderDetail(selectedOrderId.value);
+  }
+  if (selectedAdminOrderId.value && page.value === 'admin') {
+    await loadAdminOrderDetail(selectedAdminOrderId.value);
+  }
 }
 
 function readRoute() {
@@ -1424,7 +1490,7 @@ function go(pageName) {
     return;
   }
   if (isAdminUser.value && (pageName === 'orders' || pageName === 'checkout')) {
-    toast('管理员账号专注研究后台，不参与待购或下单流程', 'error');
+    toast(t('toast.adminStandardBlocked'), 'error');
     pageName = 'admin';
   }
   window.location.hash = `/${pageName}`;
@@ -1502,7 +1568,7 @@ function closeAuth() {
 }
 
 function openAi(type = 'seller', product = selectedProduct.value) {
-  if (!ensureStandardUser('管理员账号不参与促销/守护 AI 对话')) return;
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
   aiType.value = type;
   aiProductId.value = product?.id || '';
   aiOpen.value = true;
@@ -1545,7 +1611,7 @@ function ensureAuth() {
   return false;
 }
 
-function ensureStandardUser(message = '管理员账号专注研究后台，不参与待购或下单流程') {
+function ensureStandardUser(message = t('toast.adminStandardBlocked')) {
   if (!ensureAuth()) return false;
   if (isAdminUser.value) {
     toast(message, 'error');
@@ -1564,7 +1630,7 @@ function toast(message, type = 'success') {
 }
 
 function formatMoney(value) {
-  return new Intl.NumberFormat('zh-CN', {
+  return new Intl.NumberFormat(locale.value, {
     style: 'currency',
     currency: 'CNY',
     maximumFractionDigits: 2,
@@ -1573,7 +1639,13 @@ function formatMoney(value) {
 
 function categoryName(id) {
   const category = categories.value.find((item) => String(item.id || item.name) === String(id));
-  return category?.name || category?.id || id || '未分类';
+  if (category?.id && messages[DEFAULT_LOCALE][`category.${category.id}`]) {
+    return t(`category.${category.id}`);
+  }
+  if (messages[DEFAULT_LOCALE][`category.${id}`]) {
+    return t(`category.${id}`);
+  }
+  return category?.name || category?.id || id || t('common.unknownCategory');
 }
 
 function productImage(product) {
@@ -1590,20 +1662,29 @@ function productSpecs(product) {
 
 function statusLabel(status) {
   const value = String(status || '').toLowerCase();
-  if (value === 'paid' || value === '已支付') return '已支付';
-  if (value === 'shipped' || value === '已发货') return '已发货';
-  if (value === 'completed' || value === '已完成') return '已完成';
-  if (value === 'cancelled' || value === '已取消') return '已取消';
-  return '待支付';
+  if (value === 'paid') return t('status.paid');
+  if (value === 'shipped') return t('common.shipped');
+  if (value === 'completed') return t('common.completed');
+  if (value === 'cancelled') return t('status.cancelled');
+  return t('common.pending');
 }
 
 function statusClass(status) {
   const value = String(status || '').toLowerCase();
-  if (value === 'paid' || value === '已支付') return 'paid';
-  if (value === 'shipped' || value === '已发货') return 'shipped';
-  if (value === 'completed' || value === '已完成') return 'completed';
-  if (value === 'cancelled' || value === '已取消') return 'cancelled';
+  if (value === 'paid') return 'paid';
+  if (value === 'shipped') return 'shipped';
+  if (value === 'completed') return 'completed';
+  if (value === 'cancelled') return 'cancelled';
   return 'pending';
+}
+
+function aiTypeLabel(value) {
+  return value === 'seller' ? t('common.sellerAi') : t('common.guardianAi');
+}
+
+function behaviorLabel(value) {
+  const label = t(`behavior.${value}`);
+  return label === `behavior.${value}` ? value : label;
 }
 
 async function loadCategories() {
@@ -1611,7 +1692,7 @@ async function loadCategories() {
     const result = await ProductAPI.getCategories();
     categories.value = result.categories || [];
   } catch (error) {
-    toast(error.message || '加载分类失败', 'error');
+    toast(error.message || t('toast.categoriesLoadFailed'), 'error');
   }
 }
 
@@ -1625,7 +1706,7 @@ async function loadProducts() {
     }
   } catch (error) {
     products.value = [];
-    toast(error.message || '加载样本失败', 'error');
+    toast(error.message || t('toast.productsLoadFailed'), 'error');
   } finally {
     loading.products = false;
   }
@@ -1643,7 +1724,7 @@ async function loadProductInsights(productId) {
     productInsights.value = result;
   } catch (error) {
     if (error.status !== 401) {
-      toast(error.message || '加载样本洞察失败', 'error');
+      toast(error.message || t('toast.productInsightsLoadFailed'), 'error');
     }
   } finally {
     productInsightsLoading.value = false;
@@ -1666,7 +1747,7 @@ async function loadCart() {
       TokenManager.clear();
       openAuth('login');
     } else {
-      toast(error.message || '加载待购清单失败', 'error');
+      toast(error.message || t('toast.cartLoadFailed'), 'error');
     }
   }
 }
@@ -1694,7 +1775,7 @@ async function loadOrders() {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加载记录失败', 'error');
+      toast(error.message || t('toast.orderLoadFailed'), 'error');
     }
   } finally {
     loading.orders = false;
@@ -1715,7 +1796,7 @@ async function loadOrderDetail(orderId) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加载记录详情失败', 'error');
+      toast(error.message || t('toast.orderDetailLoadFailed'), 'error');
     }
   }
 }
@@ -1723,7 +1804,7 @@ async function loadOrderDetail(orderId) {
 async function loadAdmin() {
   if (!ensureAuth()) return;
   if (!isAdminUser.value) {
-    toast('需要管理员账号', 'error');
+    toast(t('toast.adminOnly'), 'error');
     return;
   }
   loading.admin = true;
@@ -1755,7 +1836,7 @@ async function loadAdmin() {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加载研究后台失败', 'error');
+      toast(error.message || t('toast.researchLoadFailed'), 'error');
     }
   } finally {
     loading.admin = false;
@@ -1779,7 +1860,7 @@ async function loadAdminOrderDetail(orderId) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加载管理员订单详情失败', 'error');
+      toast(error.message || t('toast.orderStatusLoadFailed'), 'error');
     }
   } finally {
     loading.adminOrderDetail = false;
@@ -1793,13 +1874,13 @@ async function saveAdminOrderStatus() {
       status: adminOrderForm.status,
       note: adminOrderForm.note,
     });
-    toast('订单状态已更新');
+    toast(t('toast.orderStatusSaved'));
     await Promise.all([loadAdmin(), loadAdminOrderDetail(selectedAdminOrderId.value)]);
   } catch (error) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '更新订单状态失败', 'error');
+      toast(error.message || t('toast.orderStatusUpdateFailed'), 'error');
     }
   }
 }
@@ -1809,7 +1890,7 @@ async function addToCart(product) {
   try {
     await CartAPI.add(product.id, 1);
     await loadCart();
-    toast('已加入待购清单');
+    toast(t('toast.cartAdded'));
     void trackBehavior('add_cart', {
       productId: product.id,
       quantity: 1,
@@ -1819,7 +1900,7 @@ async function addToCart(product) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '加入待购清单失败', 'error');
+      toast(error.message || t('toast.cartAddFailed'), 'error');
     }
   }
 }
@@ -1849,7 +1930,7 @@ async function changeCartQuantity(item, delta) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '更新待购清单失败', 'error');
+      toast(error.message || t('toast.cartUpdateFailed'), 'error');
     }
   }
 }
@@ -1867,7 +1948,7 @@ async function removeCartItem(item) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '移除失败', 'error');
+      toast(error.message || t('toast.cartRemoveFailed'), 'error');
     }
   }
 }
@@ -1889,7 +1970,7 @@ async function submitOrder() {
     const result = await OrderAPI.create(items, shippingAddress);
     cart.value = [];
     closeCart();
-    toast(`记录已创建：${result.orderNo}`);
+    toast(t('toast.orderCreated', { orderNo: result.orderNo }));
     void trackBehavior('place_order', {
       orderNo: result.orderNo,
       itemCount: items.length,
@@ -1903,7 +1984,7 @@ async function submitOrder() {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '提交决策失败', 'error');
+      toast(error.message || t('toast.submitOrderFailed'), 'error');
     }
   }
 }
@@ -1911,7 +1992,7 @@ async function submitOrder() {
 async function saveAdminConfig() {
   if (!ensureAuth()) return;
   if (!isAdminUser.value) {
-    toast('需要管理员账号', 'error');
+    toast(t('toast.adminOnly'), 'error');
     return;
   }
   try {
@@ -1922,31 +2003,31 @@ async function saveAdminConfig() {
       seller_ai_enabled: adminForm.seller_ai_enabled,
       guardian_ai_enabled: adminForm.guardian_ai_enabled,
     });
-    toast('AI 配置已保存');
+    toast(t('toast.aiConfigSaved'));
     await loadAdmin();
   } catch (error) {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || '保存失败', 'error');
+      toast(error.message || t('toast.configSaveFailed'), 'error');
     }
   }
 }
 
 async function loadAiHistory(type) {
-  if (!ensureStandardUser('管理员账号不参与促销/守护 AI 对话')) return;
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
   try {
     const result = await AIAPI.getHistory(type);
     aiHistory[type] = (result.history || []).slice().reverse();
   } catch (error) {
     if (error.status !== 401) {
-      toast(error.message || '加载对话失败', 'error');
+      toast(error.message || t('toast.chatLoadFailed'), 'error');
     }
   }
 }
 
 async function sendAiMessage() {
-  if (!ensureStandardUser('管理员账号不参与促销/守护 AI 对话')) return;
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
   const message = aiMessage.value.trim();
   if (!message || aiSending.value) return;
 
@@ -1972,7 +2053,7 @@ async function sendAiMessage() {
     if (error.status === 401) {
       openAuth('login');
     } else {
-      toast(error.message || 'AI 对话失败', 'error');
+      toast(error.message || t('toast.aiFailed'), 'error');
     }
     await loadAiHistory(type);
   } finally {
@@ -1992,7 +2073,7 @@ async function submitAuth() {
     TokenManager.set(result.token);
     TokenManager.setUser(result.user);
     closeAuth();
-    toast(authMode.value === 'login' ? '登录成功' : '注册成功');
+    toast(authMode.value === 'login' ? t('toast.loginSuccess') : t('toast.registerSuccess'));
     if (isAdminUser.value) {
       cart.value = [];
       orders.value = [];
@@ -2003,7 +2084,7 @@ async function submitAuth() {
       go('products');
     }
   } catch (error) {
-    toast(error.message || (authMode.value === 'login' ? '登录失败' : '注册失败'), 'error');
+    toast(error.message || (authMode.value === 'login' ? t('toast.loginFailed') : t('toast.registerFailed')), 'error');
   }
 }
 
@@ -2031,7 +2112,7 @@ async function logout() {
   adminConfig.value = null;
   closeCart();
   closeAi();
-  toast('已退出');
+  toast(t('toast.loggedOut'));
   go('products');
 }
 </script>

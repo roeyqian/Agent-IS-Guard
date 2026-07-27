@@ -1,11 +1,12 @@
 import { json, requireStandardUser } from "../../app/http.js";
-import { getProductImageUrl } from "../shop/utils.js";
+import { getLocaleFromRequest, getProductImageUrl } from "../shop/utils.js";
 
-export async function getCart({ request, env }) {
+export async function getCart({ request, env, url }) {
   const { session } = await requireStandardUser(request, env);
+  const locale = getLocaleFromRequest(request, url);
 
   const { results } = await env.db.prepare(`
-    SELECT ci.*, p.name, p.price, p.image_url, p.stock
+    SELECT ci.*, p.name, p.name_en, p.price, p.image_url, p.stock
     FROM cart_items ci
     JOIN products p ON ci.product_id = p.id
     WHERE ci.user_id = ?
@@ -14,6 +15,7 @@ export async function getCart({ request, env }) {
 
   const items = results.map((item) => ({
     ...item,
+    name: locale === 'en-US' && item.name_en ? item.name_en : item.name,
     image_url: getProductImageUrl(item.product_id),
   }));
 

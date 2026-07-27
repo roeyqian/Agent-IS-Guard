@@ -1,4 +1,5 @@
 import { json, requireAdmin, requireAuth, getSession } from "../../app/http.js";
+import { getLocaleFromRequest } from "../shop/utils.js";
 
 export async function trackBehavior({ request, env }) {
   const token = requireAuth(request);
@@ -36,8 +37,9 @@ export async function trackBehavior({ request, env }) {
   return json({ message: "Behavior tracked", behaviorId });
 }
 
-export async function getSummary({ request, env }) {
+export async function getSummary({ request, env, url }) {
   await requireAdmin(request, env);
+  const locale = getLocaleFromRequest(request, url);
 
   const [
     userRow,
@@ -73,7 +75,7 @@ export async function getSummary({ request, env }) {
        ORDER BY value DESC`
     ).all(),
     env.db.prepare(
-      `SELECT p.id, p.name, p.price, p.rating, p.stock,
+      `SELECT p.id, p.name, p.name_en, p.price, p.rating, p.stock,
               COUNT(ub.id) as view_count
        FROM products p
        LEFT JOIN user_behaviors ub ON ub.product_id = p.id
@@ -130,6 +132,7 @@ export async function getSummary({ request, env }) {
     })),
     topProducts: topProductRows.results.map((row) => ({
       ...row,
+      name: locale === 'en-US' && row.name_en ? row.name_en : row.name,
       view_count: Number(row.view_count || 0),
     })),
     dailyBehavior: dailyBehaviorRows.results.map((row) => ({

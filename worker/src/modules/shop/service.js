@@ -1,7 +1,8 @@
 import { json } from "../../app/http.js";
-import { getProductImage, normalizeProduct } from "./utils.js";
+import { getLocaleFromRequest, getProductImage, normalizeCategory, normalizeProduct } from "./utils.js";
 
 export async function getProducts({ request, env, url }) {
+  const locale = getLocaleFromRequest(request, url);
   const category = url.searchParams.get('category');
   const limit = clampInt(url.searchParams.get('limit'), 20, 1, 100);
   const offset = Math.max(0, clampInt(url.searchParams.get('offset'), 0, 0, Number.MAX_SAFE_INTEGER));
@@ -25,7 +26,7 @@ export async function getProducts({ request, env, url }) {
     LIMIT ? OFFSET ?
   `).bind(...params, limit, offset).all();
 
-  const products = results.map(normalizeProduct);
+  const products = results.map((product) => normalizeProduct(product, locale));
 
   return json({
     products,
@@ -38,7 +39,8 @@ export async function getProducts({ request, env, url }) {
   });
 }
 
-export async function getProductById({ env, params }) {
+export async function getProductById({ request, env, params, url }) {
+  const locale = getLocaleFromRequest(request, url);
   const product = await env.db.prepare(
     "SELECT * FROM products WHERE id = ?"
   ).bind(params.id).first();
@@ -47,20 +49,22 @@ export async function getProductById({ env, params }) {
     throw { status: 404, message: "Product not found" };
   }
 
-  const productDetail = normalizeProduct(product);
+  const productDetail = normalizeProduct(product, locale);
 
   return json({ product: productDetail });
 }
 
-export async function getCategories({ env }) {
+export async function getCategories({ request, env, url }) {
+  const locale = getLocaleFromRequest(request, url);
   const { results } = await env.db.prepare(
     "SELECT * FROM categories ORDER BY sort_order"
   ).all();
 
-  return json({ categories: results });
+  return json({ categories: results.map((category) => normalizeCategory(category, locale)) });
 }
 
-export async function getProductInsights({ env, params }) {
+export async function getProductInsights({ request, env, params, url }) {
+  const locale = getLocaleFromRequest(request, url);
   const product = await env.db.prepare(
     "SELECT * FROM products WHERE id = ?"
   ).bind(params.id).first();
@@ -120,7 +124,8 @@ export async function getProductInsights({ env, params }) {
        LIMIT 8`
     ).bind(params.id).all(),
     env.db.prepare(
-      `SELECT id, name, price, original_price, rating, stock, sales_count
+      `SELECT id, category_id, name, name_en, subtitle, subtitle_en, description, description_en,
+              price, original_price, rating, stock, sales_count, image_url, images_json, specs_json, tags_json
        FROM products
        WHERE category_id = ? AND id != ?
        ORDER BY sales_count DESC, rating DESC
@@ -134,7 +139,7 @@ export async function getProductInsights({ env, params }) {
   }));
 
   return json({
-    product: normalizeProduct(product),
+    product: normalizeProduct(product, locale),
     summary: {
       views: Number(viewRow?.value || 0),
       addToCart: Number(cartRow?.value || 0),
@@ -148,7 +153,7 @@ export async function getProductInsights({ env, params }) {
       ...row,
       metadata: parseJson(row.metadata_json, {}),
     })),
-    relatedProducts: relatedRows.results.map(normalizeProduct),
+    relatedProducts: relatedRows.results.map((item) => normalizeProduct(item, locale)),
   });
 }
 
