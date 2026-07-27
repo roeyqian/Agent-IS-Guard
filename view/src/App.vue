@@ -994,63 +994,157 @@
 
     <div v-if="aiOpen && !isAdminUser" class="overlay" @click.self="closeAi">
       <aside class="drawer ai-drawer">
-        <div class="drawer-head">
-          <div>
-            <strong>{{ t('ai.title') }}</strong>
-            <span>{{ aiContextLabel }}</span>
+        <div class="drawer-head ai-head">
+          <div class="ai-title-block">
+            <span class="ai-avatar" :class="aiType">
+              <Sparkles v-if="aiType === 'seller'" :size="18" />
+              <ShieldCheck v-else :size="18" />
+            </span>
+            <div>
+              <strong>{{ activeAiTitle }}</strong>
+              <span>{{ activeAiDescription }}</span>
+            </div>
           </div>
           <button class="icon-close" type="button" @click="closeAi">
             <X :size="18" />
           </button>
         </div>
 
-        <div class="segmented ai-tabs">
+        <div class="ai-switcher" role="tablist" :aria-label="t('ai.title')">
           <button
-            class="segment"
+            class="ai-mode"
             :class="{ active: aiType === 'seller' }"
             type="button"
+            role="tab"
+            :aria-selected="aiType === 'seller'"
             @click="switchAi('seller')"
           >
-            {{ t('common.sellerType') }}
+            <Sparkles :size="16" />
+            <span>{{ t('common.sellerType') }}</span>
           </button>
           <button
-            class="segment"
+            class="ai-mode"
             :class="{ active: aiType === 'guardian' }"
             type="button"
+            role="tab"
+            :aria-selected="aiType === 'guardian'"
             @click="switchAi('guardian')"
           >
-            {{ t('common.guardianType') }}
+            <ShieldCheck :size="16" />
+            <span>{{ t('common.guardianType') }}</span>
           </button>
         </div>
 
-        <div ref="aiMessagesEl" class="drawer-body ai-body">
-          <div v-if="!aiHistory[aiType].length" class="empty-state">
+        <div class="ai-context-card">
+          <div v-if="aiContextProduct" class="ai-context-product">
+            <img
+              v-if="productImage(aiContextProduct)"
+              :src="productImage(aiContextProduct)"
+              :alt="aiContextProduct.name"
+            />
+            <div v-else class="ai-context-fallback">
+              <Package2 :size="18" />
+            </div>
+            <div>
+              <span>{{ t('ai.contextLabel') }}</span>
+              <strong>{{ aiContextProduct.name }}</strong>
+            </div>
+          </div>
+          <div v-else class="ai-context-product">
+            <div class="ai-context-fallback">
+              <Package2 :size="18" />
+            </div>
+            <div>
+              <span>{{ t('ai.contextLabel') }}</span>
+              <strong>{{ t('ai.contextNoneShort') }}</strong>
+            </div>
+          </div>
+          <button
+            v-if="selectedProduct && aiProductId !== selectedProduct.id"
+            class="ghost-btn compact-btn"
+            type="button"
+            @click="aiProductId = selectedProduct.id"
+          >
+            <RefreshCcw :size="15" />
+            {{ t('ai.useCurrentProduct') }}
+          </button>
+        </div>
+
+        <div ref="aiMessagesEl" class="drawer-body ai-body" aria-live="polite">
+          <div v-if="!activeAiMessages.length" class="ai-empty">
+            <span class="ai-empty-icon">
+              <MessageSquareMore :size="24" />
+            </span>
             <strong>{{ t('ai.emptyTitle') }}</strong>
-            <span>{{ t('ai.emptyBody') }}</span>
+            <span>{{ aiEmptyBody }}</span>
+            <div class="prompt-grid">
+              <button
+                v-for="prompt in aiSuggestionPrompts"
+                :key="prompt"
+                class="prompt-chip"
+                type="button"
+                @click="applyAiPrompt(prompt)"
+              >
+                {{ prompt }}
+              </button>
+            </div>
           </div>
 
           <div v-else class="chat-list">
             <div
-              v-for="(message, index) in aiHistory[aiType]"
+              v-for="(message, index) in activeAiMessages"
               :key="`${message.role}-${index}`"
               class="chat-row"
               :class="message.role"
             >
-              <div class="chat-bubble">{{ message.content }}</div>
+              <span class="chat-avatar">
+                <UserRound v-if="message.role === 'user'" :size="16" />
+                <Bot v-else :size="16" />
+              </span>
+              <div class="chat-message">
+                <span class="chat-label">
+                  {{ message.role === 'user' ? t('ai.you') : activeAiTitle }}
+                </span>
+                <div class="chat-bubble">{{ message.content }}</div>
+              </div>
+            </div>
+            <div v-if="aiSending" class="chat-row assistant">
+              <span class="chat-avatar">
+                <Bot :size="16" />
+              </span>
+              <div class="chat-message">
+                <span class="chat-label">{{ activeAiTitle }}</span>
+                <div class="typing-bubble" :aria-label="t('ai.thinking')">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <form class="chat-form" @submit.prevent="sendAiMessage">
-          <input
+          <textarea
+            ref="aiInputEl"
             v-model="aiMessage"
-            type="text"
+            rows="3"
             :placeholder="aiType === 'seller' ? t('ai.chatPlaceholderSeller') : t('ai.chatPlaceholderGuardian')"
-          />
-          <button class="primary-btn" type="submit" :disabled="aiSending || !aiMessage.trim()">
-            <MessageSquareMore :size="16" />
-            {{ t('ai.send') }}
+            @keydown="handleAiKeydown"
+          ></textarea>
+          <button
+            class="primary-btn send-btn"
+            type="submit"
+            :aria-label="t('ai.send')"
+            :title="t('ai.send')"
+            :disabled="aiSending || !aiMessage.trim()"
+          >
+            <SendHorizontal :size="18" />
           </button>
+          <div class="chat-footnote">
+            <span>{{ aiType === 'seller' ? t('ai.sellerModeHint') : t('ai.guardianModeHint') }}</span>
+            <span>{{ t('ai.messageCount', { count: activeAiMessages.length }) }}</span>
+          </div>
         </form>
       </aside>
     </div>
@@ -1141,6 +1235,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  Bot,
   ChevronRight,
   Clock3,
   CreditCard,
@@ -1155,6 +1250,7 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  SendHorizontal,
   Settings2,
   ShieldCheck,
   ShoppingCart,
@@ -1218,6 +1314,7 @@ const aiProductId = ref('');
 const aiMessage = ref('');
 const aiSending = ref(false);
 const aiMessagesEl = ref(null);
+const aiInputEl = ref(null);
 const aiHistory = reactive({
   seller: [],
   guardian: [],
@@ -1414,9 +1511,17 @@ const selectedOrder = computed(() => {
 
 const selectedOrderView = computed(() => selectedOrderDetail.value || selectedOrder.value);
 
-const aiContextLabel = computed(() => {
-  const product = products.value.find((item) => item.id === aiProductId.value) || selectedProduct.value;
-  return product ? t('ai.contextProduct', { name: product.name }) : t('ai.contextNone');
+const aiContextProduct = computed(() => products.value.find((item) => item.id === aiProductId.value) || selectedProduct.value || null);
+const activeAiMessages = computed(() => aiHistory[aiType.value] || []);
+const activeAiTitle = computed(() => (aiType.value === 'seller' ? t('common.sellerAi') : t('common.guardianAi')));
+const activeAiDescription = computed(() =>
+  aiType.value === 'seller' ? t('ai.sellerDescription') : t('ai.guardianDescription'),
+);
+const aiEmptyBody = computed(() => (aiType.value === 'seller' ? t('ai.emptyBodySeller') : t('ai.emptyBodyGuardian')));
+const aiSuggestionPrompts = computed(() => {
+  const productName = aiContextProduct.value?.name || t('common.product');
+  const prefix = aiType.value === 'seller' ? 'ai.sellerPrompt' : 'ai.guardianPrompt';
+  return [1, 2, 3].map((index) => t(`${prefix}${index}`, { name: productName }));
 });
 
 const behaviorBreakdown = computed(() => adminStats.value?.behavior_breakdown || []);
@@ -1631,6 +1736,7 @@ function openAi(type = 'seller', product = selectedProduct.value) {
     productId: product?.id || null,
   });
   loadAiHistory(type);
+  void nextTick(() => aiInputEl.value?.focus());
 }
 
 function closeAi() {
@@ -1647,6 +1753,18 @@ function switchAi(type) {
     });
   }
   loadAiHistory(type);
+  void nextTick(() => aiInputEl.value?.focus());
+}
+
+function applyAiPrompt(prompt) {
+  aiMessage.value = prompt;
+  void nextTick(() => aiInputEl.value?.focus());
+}
+
+function handleAiKeydown(event) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  void sendAiMessage();
 }
 
 async function trackBehavior(behaviorType, payload = {}) {
