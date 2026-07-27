@@ -1288,6 +1288,7 @@ img {
 
 .toast {
   box-shadow: var(--shadow);
+  white-space: pre-line;
 }
 
 .toast.error {

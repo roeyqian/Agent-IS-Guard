@@ -41,13 +41,34 @@ export function createRouter() {
 export async function handleApi(request, env, url, router) {
   if (request.method === "OPTIONS") return withCors(new Response(null, { status: 204 }));
 
+  const requestId = createId("req");
   try {
-    return withCors(await router.handle(request, env, url));
+    const response = await router.handle(request, env, url);
+    return withCors(response, { "x-request-id": requestId });
   } catch (error) {
-    const status = Number(error?.status) || 500;
-    if (status >= 500) console.error(error);
+    const status = getErrorStatus(error);
+    const message = getErrorMessage(error);
+    const safeMessage = sanitizeErrorMessage(message);
+
+    if (status >= 500) {
+      console.error("API error", {
+        requestId,
+        method: request.method,
+        path: url.pathname,
+        status,
+        message,
+        stack: error?.stack,
+      });
+    }
+
+    const payload = {
+      error: status >= 500 ? "Server error" : safeMessage,
+      requestId,
+    };
+    if (status >= 500 && safeMessage) payload.detail = safeMessage;
+
     return withCors(
-      json({ error: status === 500 ? "Server error" : String(error?.message || error) }, status),
+      json(payload, status, { "x-request-id": requestId }),
     );
   }
 }
@@ -76,9 +97,10 @@ function compilePattern(pattern) {
   return { expression: new RegExp(`^${source}/?$`), names };
 }
 
-function withCors(response) {
+function withCors(response, extraHeaders = {}) {
   const headers = new Headers(response.headers);
   for (const [key, value] of Object.entries(CORS_HEADERS)) headers.set(key, value);
+  for (const [key, value] of Object.entries(extraHeaders)) headers.set(key, value);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -86,8 +108,36 @@ function withCors(response) {
   });
 }
 
-export function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+export function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...JSON_HEADERS, ...extraHeaders },
+  });
+}
+
+function getErrorStatus(error) {
+  const status = Number(error?.status || error?.statusCode);
+  return Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500;
+}
+
+function getErrorMessage(error) {
+  if (typeof error === "string") return error;
+  if (error?.message) return String(error.message);
+  if (error?.cause?.message) return String(error.cause.message);
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized && serialized !== "{}" ? serialized : String(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function sanitizeErrorMessage(message) {
+  return String(message || "")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
+    .replace(/(api[_-]?key\s*[:=]\s*)[^\s,;]+/gi, "$1[redacted]")
+    .replace(/(authorization\s*[:=]\s*)[^\s,;]+/gi, "$1[redacted]")
+    .slice(0, 500);
 }
 
 export function requireAuth(request) {

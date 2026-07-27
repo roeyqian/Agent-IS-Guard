@@ -54,12 +54,31 @@ async function request(url, options = {}) {
     if (response.status === 401) {
       TokenManager.clear();
     }
-    const error = new Error(data.error || 'Request failed');
+    const error = new Error(formatErrorMessage(data, response.status));
     error.status = response.status;
+    error.detail = data.detail || '';
+    error.requestId = data.requestId || response.headers.get('x-request-id') || '';
+    error.payload = data;
     throw error;
   }
 
   return data;
+}
+
+function formatErrorMessage(data, status) {
+  const title = data.error || `Request failed (HTTP ${status})`;
+  const lines = [title];
+
+  if (data.detail && data.detail !== title) {
+    lines.push(data.detail);
+  }
+
+  const requestId = data.requestId;
+  if (requestId) {
+    lines.push(`Request ID: ${requestId}`);
+  }
+
+  return lines.join('\n');
 }
 
 export const AuthAPI = {

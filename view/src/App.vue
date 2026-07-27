@@ -1679,7 +1679,7 @@ function toast(message, type = 'success') {
   toasts.value.push({ id, message, type });
   window.setTimeout(() => {
     toasts.value = toasts.value.filter((item) => item.id !== id);
-  }, 2600);
+  }, type === 'error' ? 7000 : 2600);
 }
 
 function formatMoney(value) {
