@@ -160,22 +160,21 @@ export async function getOrderDetail({ request, env, params, url }) {
     throw { status: 404, message: "Order not found" };
   }
 
-  const [{ results: items }, { results: events }] = await Promise.all([
-    env.db.prepare(
-      `SELECT oi.*, p.name AS current_name, p.name_en AS current_name_en
-       FROM order_items oi
-       LEFT JOIN products p ON p.id = oi.product_id
-       WHERE oi.order_id = ?
-       ORDER BY oi.subtotal DESC`
-    ).bind(params.id).all(),
-    env.db.prepare(
-      `SELECT oe.*, u.username AS actor_name
-       FROM order_events oe
-       LEFT JOIN users u ON u.id = oe.actor_user_id
-       WHERE oe.order_id = ?
-       ORDER BY oe.created_at ASC`
-    ).bind(params.id).all(),
-  ]);
+  const { results: items } = await env.db.prepare(
+    `SELECT oi.*, p.name AS current_name, p.name_en AS current_name_en
+     FROM order_items oi
+     LEFT JOIN products p ON p.id = oi.product_id
+     WHERE oi.order_id = ?
+     ORDER BY oi.subtotal DESC`
+  ).bind(params.id).all();
+
+  const { results: events } = await env.db.prepare(
+    `SELECT oe.*, u.username AS actor_name
+     FROM order_events oe
+     LEFT JOIN users u ON u.id = oe.actor_user_id
+     WHERE oe.order_id = ?
+     ORDER BY oe.created_at ASC`
+  ).bind(params.id).all();
 
   return json({
     order: {

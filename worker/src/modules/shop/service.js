@@ -73,65 +73,61 @@ export async function getProductInsights({ request, env, params, url }) {
     throw { status: 404, message: "Product not found" };
   }
 
-  const [
-    viewRow,
-    cartRow,
-    orderRow,
-    revenueRow,
-    aiRows,
-    recentBehaviorRows,
-    relatedRows,
-  ] = await Promise.all([
-    env.db.prepare(
-      `SELECT COUNT(*) as value
-       FROM user_behaviors ub
-       JOIN users u ON u.id = ub.user_id
-       WHERE u.role = 'user' AND ub.product_id = ? AND ub.behavior_type = 'view_product'`
-    ).bind(params.id).first(),
-    env.db.prepare(
-      `SELECT COUNT(*) as value
-       FROM user_behaviors ub
-       JOIN users u ON u.id = ub.user_id
-       WHERE u.role = 'user' AND ub.product_id = ? AND ub.behavior_type = 'add_cart'`
-    ).bind(params.id).first(),
-    env.db.prepare(
-      `SELECT COUNT(*) as value
-       FROM order_items oi
-       JOIN orders o ON o.id = oi.order_id
-       JOIN users u ON u.id = o.user_id
-       WHERE u.role = 'user' AND oi.product_id = ?`
-    ).bind(params.id).first(),
-    env.db.prepare(
-      `SELECT COALESCE(SUM(oi.subtotal), 0) as value
-       FROM order_items oi
-       JOIN orders o ON o.id = oi.order_id
-       JOIN users u ON u.id = o.user_id
-       WHERE u.role = 'user' AND oi.product_id = ? AND o.status != 'cancelled'`
-    ).bind(params.id).first(),
-    env.db.prepare(
-      `SELECT ac.ai_type, COUNT(*) as value
-       FROM ai_conversations ac
-       JOIN users u ON u.id = ac.user_id
-       WHERE u.role = 'user' AND ac.product_id = ? AND ac.role = 'user'
-       GROUP BY ac.ai_type`
-    ).bind(params.id).all(),
-    env.db.prepare(
-      `SELECT ub.behavior_type, ub.session_id, ub.timestamp, ub.metadata_json, u.username
-       FROM user_behaviors ub
-       JOIN users u ON u.id = ub.user_id
-       WHERE u.role = 'user' AND ub.product_id = ?
-       ORDER BY ub.timestamp DESC
-       LIMIT 8`
-    ).bind(params.id).all(),
-    env.db.prepare(
-      `SELECT id, category_id, name, name_en, subtitle, subtitle_en, description, description_en,
-              price, original_price, rating, stock, sales_count, image_url, images_json, specs_json, tags_json
-       FROM products
-       WHERE category_id = ? AND id != ?
-       ORDER BY sales_count DESC, rating DESC
-       LIMIT 4`
-    ).bind(product.category_id, params.id).all(),
-  ]);
+  const viewRow = await env.db.prepare(
+    `SELECT COUNT(*) as value
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id
+     WHERE u.role = 'user' AND ub.product_id = ? AND ub.behavior_type = 'view_product'`
+  ).bind(params.id).first();
+
+  const cartRow = await env.db.prepare(
+    `SELECT COUNT(*) as value
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id
+     WHERE u.role = 'user' AND ub.product_id = ? AND ub.behavior_type = 'add_cart'`
+  ).bind(params.id).first();
+
+  const orderRow = await env.db.prepare(
+    `SELECT COUNT(*) as value
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     JOIN users u ON u.id = o.user_id
+     WHERE u.role = 'user' AND oi.product_id = ?`
+  ).bind(params.id).first();
+
+  const revenueRow = await env.db.prepare(
+    `SELECT COALESCE(SUM(oi.subtotal), 0) as value
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     JOIN users u ON u.id = o.user_id
+     WHERE u.role = 'user' AND oi.product_id = ? AND o.status != 'cancelled'`
+  ).bind(params.id).first();
+
+  const aiRows = await env.db.prepare(
+    `SELECT ac.ai_type, COUNT(*) as value
+     FROM ai_conversations ac
+     JOIN users u ON u.id = ac.user_id
+     WHERE u.role = 'user' AND ac.product_id = ? AND ac.role = 'user'
+     GROUP BY ac.ai_type`
+  ).bind(params.id).all();
+
+  const recentBehaviorRows = await env.db.prepare(
+    `SELECT ub.behavior_type, ub.session_id, ub.timestamp, ub.metadata_json, u.username
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id
+     WHERE u.role = 'user' AND ub.product_id = ?
+     ORDER BY ub.timestamp DESC
+     LIMIT 8`
+  ).bind(params.id).all();
+
+  const relatedRows = await env.db.prepare(
+    `SELECT id, category_id, name, name_en, subtitle, subtitle_en, description, description_en,
+            price, original_price, rating, stock, sales_count, image_url, images_json, specs_json, tags_json
+     FROM products
+     WHERE category_id = ? AND id != ?
+     ORDER BY sales_count DESC, rating DESC
+     LIMIT 4`
+  ).bind(product.category_id, params.id).all();
 
   const aiUsage = aiRows.results.map((row) => ({
     aiType: row.ai_type,

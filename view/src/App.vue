@@ -1862,12 +1862,10 @@ async function loadAdmin() {
   }
   loading.admin = true;
   try {
-    const [stats, config, summary, ordersData] = await Promise.all([
-      AdminAPI.getStats(),
-      AdminAPI.getAiConfig(),
-      ResearchAPI.getSummary(),
-      AdminAPI.getOrders({ limit: 12 }),
-    ]);
+    const stats = await AdminAPI.getStats();
+    const config = await AdminAPI.getAiConfig();
+    const summary = await ResearchAPI.getSummary();
+    const ordersData = await AdminAPI.getOrders({ limit: 12 });
     adminStats.value = stats;
     adminConfig.value = config;
     researchSummary.value = summary;
