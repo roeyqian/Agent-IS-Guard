@@ -1132,9 +1132,100 @@ img {
 .session-row span,
 .trend-label span,
 .insight-row span,
-.insight-chips span {
+.insight-chips span,
+.intervention-summary-row span,
+.reflection-box span {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.compact-head {
+  margin-bottom: 10px;
+}
+
+.intervention-panel {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.intervention-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.intervention-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  min-height: 94px;
+  padding: 12px;
+  text-align: left;
+  background: var(--button-bg);
+}
+
+.intervention-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--active-shadow);
+}
+
+.intervention-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.intervention-card strong {
+  align-self: center;
+}
+
+.intervention-card span:last-child {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.intervention-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.intervention-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
+}
+
+.reflection-box {
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.reflection-box > div {
+  display: grid;
+  gap: 4px;
+}
+
+.reflection-row {
+  align-items: flex-start;
+  min-height: 28px;
 }
 
 .trend-list {
@@ -1933,7 +2024,8 @@ textarea:focus-visible {
 
   .form-grid,
   .detail-metrics,
-  .stats-grid {
+  .stats-grid,
+  .intervention-grid {
     grid-template-columns: 1fr;
   }
 

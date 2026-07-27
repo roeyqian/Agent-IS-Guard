@@ -1,8 +1,10 @@
-# ShopGuard
+# ShopGuard / BuyMate Open Prototype
 
-ShopGuard 是一个基于 Cloudflare Workers + D1 的消费决策研究平台，前端静态页面位于 `view/`，后端 API 位于 `worker/src/`。
+ShopGuard 是一个基于 Cloudflare Workers + D1 的消费决策研究平台，目标是开源实现并扩展 ACM CHI 2026 论文《BuyMate: Making AI Interventions Effective in Promoting Rational Consumption in Live Commerce》的研究原型方向。前端静态页面位于 `view/`，后端 API 位于 `worker/src/`。
 
-ShopGuard is a consumer-decision research platform built on Cloudflare Workers and D1. The static frontend lives in `view/`, and the backend API lives in `worker/src/`.
+ShopGuard is a consumer-decision research platform built on Cloudflare Workers and D1. It aims to provide an open-source prototype inspired by the ACM CHI 2026 paper "BuyMate: Making AI Interventions Effective in Promoting Rational Consumption in Live Commerce". The static frontend lives in `view/`, and the backend API lives in `worker/src/`.
+
+> 说明：本项目是研究原型与工程复现，不声称包含论文的全部实验材料、参与者流程或量表。仓库重点提供可运行的直播电商式决策环境、AI 干预界面、行为记录和研究后台。
 
 ## 功能 / Features
 
@@ -10,6 +12,7 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - 待购清单与决策提交
 - 记录列表与详情查看
 - 双 AI 助手：促销型 AI 和守护型 AI
+- BuyMate 风格干预：需求反思、同类商品比较、销售话术重构、冷静延迟
 - 研究后台：AI 配置、行为统计与决策记录管理
 - 用户行为追踪与研究数据记录
 - 样本洞察、记录事件时间线和会话级分析
@@ -18,9 +21,18 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - Watchlist and decision submission
 - Record list and detail view
 - Two AI assistants: Promotional AI and Guardian AI
+- BuyMate-style interventions: need reflection, comparable-product review, persuasion reframing, and delayed decision
 - Research dashboard for AI settings, behavior stats, and decision record management
 - User behavior tracking and research data logging
 - Product insights, record timelines, and session-level analysis
+
+## 研究设计映射 / Research Mapping
+
+- `促销型 AI`：模拟直播电商中的销售式、劝服式对照条件。
+- `守护型 AI`：提供温和、实时的理性消费干预，不替用户做决定。
+- `BuyMate 干预`：把关键干预做成可点击事件并写入 `user_behaviors`。
+- `研究后台`：汇总行为、会话、AI 对话、提交记录和干预触达次数。
+- `结算前反思`：在提交决策前记录用户是否完成关键检查。
 
 ## 技术栈 / Tech Stack
 
@@ -78,11 +90,12 @@ npm run db:init
 npm run db:seed
 npm run db:events
 npm run db:i18n
+npm run db:interventions
 ```
 
 如果你在 Cloudflare 上使用了不同的数据库名，请同步调整 `worker/package.json` 里的脚本。
 
-如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql` 和 `worker/src/migrations/0004_product_i18n.sql`。
+如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql`、`worker/src/migrations/0004_product_i18n.sql` 和 `worker/src/migrations/0006_intervention_behavior.sql`。
 
 ## 管理员 / Admin
 

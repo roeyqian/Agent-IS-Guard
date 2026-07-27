@@ -266,6 +266,30 @@
                 {{ selectedProduct.description || selectedProduct.subtitle || t('detail.noDescription') }}
               </p>
 
+              <div v-if="!isAdminUser" class="intervention-panel">
+                <div class="panel-head compact-head">
+                  <div>
+                    <h2>{{ t('buyMate.title') }}</h2>
+                    <p>{{ t('buyMate.subtitle') }}</p>
+                  </div>
+                </div>
+                <div class="intervention-grid">
+                  <button
+                    v-for="item in interventionCards"
+                    :key="item.key"
+                    class="intervention-card"
+                    type="button"
+                    @click="startIntervention(item)"
+                  >
+                    <span class="intervention-icon">
+                      <component :is="item.icon" :size="16" />
+                    </span>
+                    <strong>{{ item.label }}</strong>
+                    <span>{{ item.body }}</span>
+                  </button>
+                </div>
+              </div>
+
               <div v-if="!isAdminUser" class="detail-actions">
                 <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
                   <ShoppingCart :size="16" />
@@ -700,6 +724,13 @@
                   {{ aiTypeLabel(item.aiType) }} {{ item.value }}
                 </span>
               </div>
+
+              <div v-if="researchInterventions.length" class="intervention-summary">
+                <div v-for="item in researchInterventions" :key="item.strategy" class="intervention-summary-row">
+                  <span>{{ interventionLabel(item.strategy) }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
             </section>
 
             <aside class="panel">
@@ -865,6 +896,25 @@
                 <span>{{ t('common.note') }}</span>
                 <textarea v-model="checkoutForm.remark" rows="4"></textarea>
               </label>
+
+              <div class="field full reflection-box">
+                <div>
+                  <strong>{{ t('checkout.reflectionTitle') }}</strong>
+                  <span>{{ t('checkout.reflectionSubtitle') }}</span>
+                </div>
+                <label
+                  v-for="item in checkoutChecklist"
+                  :key="item.key"
+                  class="check-row reflection-row"
+                >
+                  <input
+                    v-model="checkoutReflection[item.key]"
+                    type="checkbox"
+                    @change="trackCheckoutReflection(item)"
+                  />
+                  <span>{{ item.label }}</span>
+                </label>
+              </div>
 
               <div class="form-actions">
                 <button class="primary-btn" type="submit">
@@ -1307,6 +1357,12 @@ const checkoutForm = reactive({
   address: '',
   remark: '',
 });
+const checkoutReflection = reactive({
+  need_reflection: false,
+  comparison: false,
+  persuasion_reframe: false,
+  delay: false,
+});
 
 const toasts = ref([]);
 
@@ -1500,7 +1556,48 @@ const researchTopProducts = computed(() => researchSummary.value?.topProducts ||
 const researchDailyBehavior = computed(() => researchSummary.value?.dailyBehavior || []);
 const researchRecentSessions = computed(() => researchSummary.value?.recentSessions || []);
 const researchAiUsage = computed(() => researchSummary.value?.aiUsage || []);
+const researchInterventions = computed(() => researchSummary.value?.interventions || []);
 const adminOrderDetailView = computed(() => selectedAdminOrderDetail.value || null);
+
+const interventionCards = computed(() => {
+  const productName = selectedProduct.value?.name || t('common.product');
+  return [
+    {
+      key: 'need_reflection',
+      icon: ShieldCheck,
+      label: t('buyMate.needReflection'),
+      body: t('buyMate.needReflectionBody'),
+      prompt: t('buyMate.needReflectionPrompt', { name: productName }),
+    },
+    {
+      key: 'comparison',
+      icon: BarChart3,
+      label: t('buyMate.comparison'),
+      body: t('buyMate.comparisonBody'),
+      prompt: t('buyMate.comparisonPrompt', { name: productName }),
+    },
+    {
+      key: 'persuasion_reframe',
+      icon: MessageSquareMore,
+      label: t('buyMate.reframe'),
+      body: t('buyMate.reframeBody'),
+      prompt: t('buyMate.reframePrompt', { name: productName }),
+    },
+    {
+      key: 'delay',
+      icon: Clock3,
+      label: t('buyMate.delay'),
+      body: t('buyMate.delayBody'),
+      prompt: t('buyMate.delayPrompt', { name: productName }),
+    },
+  ];
+});
+const checkoutChecklist = computed(() =>
+  interventionCards.value.map((item) => ({
+    key: item.key,
+    label: item.label,
+  })),
+);
 
 watch(
   locale,
@@ -1637,6 +1734,12 @@ function resetFilters() {
   filters.sort = 'hot';
 }
 
+function resetCheckoutReflection() {
+  Object.keys(checkoutReflection).forEach((key) => {
+    checkoutReflection[key] = false;
+  });
+}
+
 function pickProduct(id) {
   selectedProductId.value = id;
   if (!isAdminUser.value) {
@@ -1706,6 +1809,35 @@ function switchAi(type) {
 function applyAiPrompt(prompt) {
   aiMessage.value = prompt;
   void nextTick(() => aiInputEl.value?.focus());
+}
+
+function startIntervention(item, product = selectedProduct.value) {
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  const productId = product?.id || selectedProduct.value?.id || null;
+  void trackBehavior('intervention_check', {
+    productId,
+    strategy: item.key,
+    source: page.value,
+    cartValue: cartTotal.value,
+  });
+  aiType.value = 'guardian';
+  aiProductId.value = productId || '';
+  aiMessage.value = item.prompt;
+  aiOpen.value = true;
+  loadAiHistory('guardian');
+  void nextTick(() => aiInputEl.value?.focus());
+}
+
+function trackCheckoutReflection(item) {
+  void trackBehavior('intervention_check', {
+    strategy: item.key,
+    source: 'checkout',
+    checked: Boolean(checkoutReflection[item.key]),
+    cartValue: cartTotal.value,
+    metadata: {
+      cartCount: cartCount.value,
+    },
+  });
 }
 
 function handleAiKeydown(event) {
@@ -1808,6 +1940,11 @@ function aiTypeLabel(value) {
 function behaviorLabel(value) {
   const label = t(`behavior.${value}`);
   return label === `behavior.${value}` ? value : label;
+}
+
+function interventionLabel(value) {
+  const label = t(`intervention.${value}`);
+  return label === `intervention.${value}` ? value : label;
 }
 
 async function loadCategories() {
@@ -2085,17 +2222,26 @@ async function submitOrder() {
     phone: String(checkoutForm.phone || '').trim(),
     address: String(checkoutForm.address || '').trim(),
     remark: String(checkoutForm.remark || '').trim(),
+    reflection: Object.fromEntries(
+      Object.entries(checkoutReflection).map(([key, value]) => [key, Boolean(value)]),
+    ),
   };
+  const decisionTotal = cartTotal.value;
+  const reflectedStrategies = Object.entries(checkoutReflection)
+    .filter(([, value]) => value)
+    .map(([key]) => key);
 
   try {
     const result = await OrderAPI.create(items, shippingAddress);
     cart.value = [];
+    resetCheckoutReflection();
     closeCart();
     toast(t('toast.orderCreated', { orderNo: result.orderNo }));
     void trackBehavior('place_order', {
       orderNo: result.orderNo,
       itemCount: items.length,
-      total: cartTotal.value,
+      total: decisionTotal,
+      reflectedStrategies,
     });
     window.location.hash = `/orders`;
     syncRoute();

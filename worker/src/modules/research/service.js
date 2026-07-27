@@ -4,7 +4,8 @@ import { getLocaleFromRequest } from "../shop/utils.js";
 export async function trackBehavior({ request, env }) {
   const token = requireAuth(request);
   const session = await getSession(token, env);
-  const { behaviorType, productId, durationMs, metadata } = await request.json();
+  const body = await request.json();
+  const { behaviorType, productId, durationMs, metadata } = body;
 
   if (session.role === 'admin') {
     return json({ message: "Admin behavior ignored", skipped: true });
@@ -18,12 +19,20 @@ export async function trackBehavior({ request, env }) {
     return json({ message: "Click behavior ignored", skipped: true });
   }
 
-  const validTypes = ['view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search'];
+  const validTypes = ['view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search', 'intervention_check'];
   if (!validTypes.includes(behaviorType)) {
     throw { status: 400, message: "Invalid behavior type" };
   }
 
   const behaviorId = `beh_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const reservedFields = new Set(['behaviorType', 'productId', 'durationMs', 'metadata']);
+  const derivedMetadata = Object.fromEntries(
+    Object.entries(body).filter(([key]) => !reservedFields.has(key)),
+  );
+  const metadataJson = JSON.stringify({
+    ...derivedMetadata,
+    ...(metadata && typeof metadata === 'object' ? metadata : {}),
+  });
 
   await env.db.prepare(`
     INSERT INTO user_behaviors (id, user_id, session_id, behavior_type, product_id, duration_ms, metadata_json, timestamp)
@@ -35,7 +44,7 @@ export async function trackBehavior({ request, env }) {
     behaviorType,
     productId || null,
     durationMs || null,
-    JSON.stringify(metadata || {})
+    metadataJson
   ).run();
 
   return json({ message: "Behavior tracked", behaviorId });
@@ -100,6 +109,15 @@ export async function getSummary({ request, env, url }) {
      WHERE u.role = 'user' AND ac.role = 'user'
      GROUP BY ac.ai_type`
   ).all();
+  const interventionRows = await env.db.prepare(
+    `SELECT json_extract(ub.metadata_json, '$.strategy') as strategy,
+            COUNT(*) as value
+     FROM user_behaviors ub
+     JOIN users u ON u.id = ub.user_id
+     WHERE u.role = 'user' AND ub.behavior_type = 'intervention_check'
+     GROUP BY strategy
+     ORDER BY value DESC`
+  ).all();
 
   return json({
     totals: {
@@ -133,6 +151,10 @@ export async function getSummary({ request, env, url }) {
     })),
     aiUsage: aiUsageRows.results.map((row) => ({
       aiType: row.ai_type,
+      value: Number(row.value || 0),
+    })),
+    interventions: interventionRows.results.map((row) => ({
+      strategy: row.strategy || 'unknown',
       value: Number(row.value || 0),
     })),
   });

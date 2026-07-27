@@ -9,7 +9,8 @@
     "db:init": "wrangler d1 execute zero-1-base --file=src/migrations/0001_init.sql --remote",
     "db:seed": "wrangler d1 execute zero-1-base --file=src/migrations/0002_seed.sql --remote",
     "db:events": "wrangler d1 execute zero-1-base --file=src/migrations/0003_order_events.sql --remote",
-    "db:i18n": "wrangler d1 execute zero-1-base --file=src/migrations/0004_product_i18n.sql --remote"
+    "db:i18n": "wrangler d1 execute zero-1-base --file=src/migrations/0004_product_i18n.sql --remote",
+    "db:interventions": "wrangler d1 execute zero-1-base --file=src/migrations/0006_intervention_behavior.sql --remote"
   },
   "devDependencies": {
     "wrangler": "^4.114.0"

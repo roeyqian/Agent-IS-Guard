@@ -1,8 +1,8 @@
--- Stop recording generic click events in research behavior logs.
+-- Add BuyMate intervention events to the research behavior log.
 
-DROP TABLE IF EXISTS user_behaviors_no_click;
+DROP TABLE IF EXISTS user_behaviors_with_interventions;
 
-CREATE TABLE user_behaviors_no_click (
+CREATE TABLE user_behaviors_with_interventions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   session_id TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE user_behaviors_no_click (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-INSERT INTO user_behaviors_no_click (
+INSERT INTO user_behaviors_with_interventions (
   id,
   user_id,
   session_id,
@@ -34,10 +34,10 @@ SELECT
   metadata_json,
   timestamp
 FROM user_behaviors
-WHERE behavior_type != 'click';
+WHERE behavior_type IN ('view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search', 'intervention_check');
 
 DROP TABLE user_behaviors;
 
-ALTER TABLE user_behaviors_no_click RENAME TO user_behaviors;
+ALTER TABLE user_behaviors_with_interventions RENAME TO user_behaviors;
 
 CREATE INDEX IF NOT EXISTS idx_behaviors_user_session ON user_behaviors(user_id, session_id, timestamp);

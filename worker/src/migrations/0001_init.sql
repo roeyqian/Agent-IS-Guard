@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS user_behaviors (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   session_id TEXT NOT NULL,
-  behavior_type TEXT NOT NULL CHECK (behavior_type IN ('view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search')),
+  behavior_type TEXT NOT NULL CHECK (behavior_type IN ('view_product', 'add_cart', 'remove_cart', 'place_order', 'chat_ai', 'search', 'intervention_check')),
   product_id TEXT,
   duration_ms INTEGER,
   metadata_json TEXT NOT NULL DEFAULT '{}',
