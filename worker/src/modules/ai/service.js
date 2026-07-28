@@ -5,6 +5,11 @@ import { getGuardianPrompt } from "./guardian.js";
 import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
 
 const HIDDEN_METADATA_KEY = 'hiddenFromUser';
+const HISTORY_ORDER_DESC = `
+    ORDER BY timestamp DESC,
+      CASE role WHEN 'assistant' THEN 0 WHEN 'user' THEN 1 ELSE 2 END,
+      id DESC
+  `;
 
 export async function chat({ request, env, url }) {
   const { token, session } = await requireStandardUser(request, env);
@@ -35,7 +40,8 @@ export async function chat({ request, env, url }) {
   const { results: history } = await env.db.prepare(`
     SELECT role, content FROM ai_conversations
     WHERE user_id = ? AND ai_type = ?
-    ORDER BY timestamp DESC LIMIT 10
+    ${HISTORY_ORDER_DESC}
+    LIMIT 10
   `).bind(session.userId, aiType).all();
 
   const messages = history.reverse().map(h => ({ role: h.role, content: h.content }));
@@ -50,10 +56,11 @@ export async function chat({ request, env, url }) {
     ? getSellerPrompt(productInfo)
     : getGuardianPrompt(session, productInfo);
 
+  const userTimestamp = new Date().toISOString();
   const aiResponse = await callDeepSeek(config, systemPrompt, messages, message);
+  const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
 
   const conversationId = createId("conv");
-  const timestamp = new Date().toISOString();
 
   await env.db.prepare(`
     INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
@@ -66,7 +73,7 @@ export async function chat({ request, env, url }) {
     message,
     productId || null,
     JSON.stringify({ messageLength: message.length, source: 'research-shell' }),
-    timestamp
+    userTimestamp
   ).run();
 
   await env.db.prepare(`
@@ -80,7 +87,7 @@ export async function chat({ request, env, url }) {
     aiResponse,
     productId || null,
     JSON.stringify({ model: config.deepseek_model || 'deepseek-chat' }),
-    timestamp
+    assistantTimestamp
   ).run();
 
   return json({ response: aiResponse, aiType });
@@ -118,7 +125,8 @@ export async function promotionalNudge({ request, env, url }) {
   const { results: history } = await env.db.prepare(`
     SELECT role, content, metadata_json FROM ai_conversations
     WHERE user_id = ? AND ai_type = 'seller'
-    ORDER BY timestamp DESC LIMIT 10
+    ${HISTORY_ORDER_DESC}
+    LIMIT 10
   `).bind(session.userId).all();
 
   const messages = history
@@ -127,9 +135,10 @@ export async function promotionalNudge({ request, env, url }) {
 
   const userMessage = buildPromotionalNudgePrompt(productInfo, locale);
 
+  const userTimestamp = new Date().toISOString();
   const aiResponse = await callDeepSeek(config, getSellerPrompt(productInfo), messages, userMessage);
+  const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
   const conversationId = createId("conv");
-  const timestamp = new Date().toISOString();
   const triggerMetadata = {
     [HIDDEN_METADATA_KEY]: true,
     source: source || 'long-product-dwell',
@@ -146,7 +155,7 @@ export async function promotionalNudge({ request, env, url }) {
     userMessage,
     productId,
     JSON.stringify(triggerMetadata),
-    timestamp
+    userTimestamp
   ).run();
 
   await env.db.prepare(`
@@ -164,7 +173,7 @@ export async function promotionalNudge({ request, env, url }) {
       dwellMs: dwellDuration,
       proactive: true,
     }),
-    timestamp
+    assistantTimestamp
   ).run();
 
   return json({ response: aiResponse, aiType: 'seller' });
@@ -182,7 +191,7 @@ export async function getHistory({ request, env, url }) {
     params.push(aiType);
   }
 
-  query += " ORDER BY timestamp DESC LIMIT 50";
+  query += ` ${HISTORY_ORDER_DESC} LIMIT 50`;
 
   const { results } = await env.db.prepare(query).bind(...params).all();
 
@@ -196,6 +205,13 @@ function isHiddenConversation(item) {
   } catch {
     return false;
   }
+}
+
+function createLaterIsoTimestamp(previousTimestamp) {
+  const previousTime = Date.parse(previousTimestamp);
+  const now = Date.now();
+  const nextTime = Number.isFinite(previousTime) ? Math.max(now, previousTime + 1) : now;
+  return new Date(nextTime).toISOString();
 }
 
 function buildPromotionalNudgePrompt(productInfo, locale) {
