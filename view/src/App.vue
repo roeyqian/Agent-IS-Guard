@@ -1370,6 +1370,7 @@ import {
 
 const THEME_STORAGE_KEY = 'shopguard_theme';
 const PROMOTIONAL_DWELL_MS = 20000;
+const PROMOTIONAL_UNANSWERED_LIMIT = 2;
 const themeOptions = new Set(['light', 'dark']);
 const markdown = new MarkdownIt({
   html: false,
@@ -1993,15 +1994,23 @@ async function triggerPromotionalDwellNudge(productId) {
   aiSending.value = true;
 
   await loadAiHistory('seller');
-  void trackBehavior('view_product', {
-    productId,
-    durationMs: PROMOTIONAL_DWELL_MS,
-    source: 'long-product-dwell',
-    trigger: 'promotional_ai',
-  });
+  if (countUnansweredAssistantMessages(aiHistory.seller) >= PROMOTIONAL_UNANSWERED_LIMIT) {
+    aiSending.value = false;
+    promotionalNudgeSending.value = false;
+    return;
+  }
 
   try {
     const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS);
+    if (result.skipped) return;
+
+    void trackBehavior('view_product', {
+      productId,
+      durationMs: PROMOTIONAL_DWELL_MS,
+      source: 'long-product-dwell',
+      trigger: 'promotional_ai',
+    });
+
     aiHistory.seller = [
       ...aiHistory.seller,
       {
@@ -2021,6 +2030,16 @@ async function triggerPromotionalDwellNudge(productId) {
     aiSending.value = false;
     promotionalNudgeSending.value = false;
   }
+}
+
+function countUnansweredAssistantMessages(history) {
+  let count = 0;
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const role = history[index]?.role;
+    if (role === 'user') break;
+    if (role === 'assistant') count += 1;
+  }
+  return count;
 }
 
 function pickOrder(id) {

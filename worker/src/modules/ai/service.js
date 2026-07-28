@@ -5,6 +5,7 @@ import { getGuardianPrompt } from "./guardian.js";
 import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
 
 const HIDDEN_METADATA_KEY = 'hiddenFromUser';
+const PROMOTIONAL_UNANSWERED_LIMIT = 2;
 const HISTORY_ORDER_DESC = `
     ORDER BY timestamp DESC,
       CASE role WHEN 'assistant' THEN 0 WHEN 'user' THEN 1 ELSE 2 END,
@@ -126,10 +127,19 @@ export async function promotionalNudge({ request, env, url }) {
     SELECT role, content, metadata_json FROM ai_conversations
     WHERE user_id = ? AND ai_type = 'seller'
     ${HISTORY_ORDER_DESC}
-    LIMIT 10
+    LIMIT 50
   `).bind(session.userId).all();
 
+  if (countUnansweredAssistantMessages(history) >= PROMOTIONAL_UNANSWERED_LIMIT) {
+    return json({
+      skipped: true,
+      reason: 'unanswered_promotional_limit',
+      aiType: 'seller',
+    });
+  }
+
   const messages = history
+    .slice(0, 10)
     .reverse()
     .map(({ role, content }) => ({ role, content }));
 
@@ -205,6 +215,16 @@ function isHiddenConversation(item) {
   } catch {
     return false;
   }
+}
+
+function countUnansweredAssistantMessages(history) {
+  let count = 0;
+  for (const item of history) {
+    if (isHiddenConversation(item)) continue;
+    if (item.role === 'user') break;
+    if (item.role === 'assistant') count += 1;
+  }
+  return count;
 }
 
 function createLaterIsoTimestamp(previousTimestamp) {
