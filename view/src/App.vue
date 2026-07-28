@@ -1363,6 +1363,7 @@ import {
 } from 'lucide-vue-next';
 
 const THEME_STORAGE_KEY = 'shopguard_theme';
+const PROMOTIONAL_DWELL_MS = 20000;
 const themeOptions = new Set(['light', 'dark']);
 
 const route = ref(readRoute());
@@ -1420,6 +1421,10 @@ const aiHistory = reactive({
   seller: [],
   guardian: [],
 });
+const promotionalDwellTimer = ref(null);
+const promotionalDwellProductId = ref('');
+const promotionalNudgeSending = ref(false);
+const promotedDwellProducts = new Set();
 
 const adminConfig = ref(null);
 const adminStats = ref(null);
@@ -1477,6 +1482,9 @@ const isDarkTheme = computed(() => theme.value === 'dark');
 watch(
   () => route.value.page,
   async (next) => {
+    if (next !== 'products') {
+      clearPromotionalDwellTimer();
+    }
     if (isAdminUser.value && (next === 'orders' || next === 'checkout')) {
       go('admin');
       return;
@@ -1518,6 +1526,9 @@ watch(
 watch(
   () => selectedProductId.value,
   async (next) => {
+    if (promotionalDwellProductId.value && promotionalDwellProductId.value !== next) {
+      clearPromotionalDwellTimer();
+    }
     if (!next) {
       productInsights.value = null;
       return;
@@ -1766,6 +1777,7 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('hashchange', syncRoute);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   await bootstrap();
   if (page.value === 'products' && !selectedProductId.value && products.value.length) {
     selectedProductId.value = products.value[0].id;
@@ -1774,6 +1786,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('hashchange', syncRoute);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  clearPromotionalDwellTimer();
 });
 
 async function bootstrap() {
@@ -1894,9 +1908,82 @@ function pickProduct(id) {
       query: filters.q,
       category: filters.category,
     });
+    schedulePromotionalDwellNudge(id);
   }
   if (page.value !== 'products') {
     go('products');
+  }
+}
+
+function schedulePromotionalDwellNudge(productId) {
+  clearPromotionalDwellTimer();
+  if (!token.value || isAdminUser.value || promotedDwellProducts.has(productId)) return;
+  if (document.visibilityState === 'hidden') return;
+
+  promotionalDwellProductId.value = productId;
+  promotionalDwellTimer.value = window.setTimeout(() => {
+    void triggerPromotionalDwellNudge(productId);
+  }, PROMOTIONAL_DWELL_MS);
+}
+
+function clearPromotionalDwellTimer() {
+  if (promotionalDwellTimer.value) {
+    window.clearTimeout(promotionalDwellTimer.value);
+  }
+  promotionalDwellTimer.value = null;
+  promotionalDwellProductId.value = '';
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') {
+    clearPromotionalDwellTimer();
+  }
+}
+
+async function triggerPromotionalDwellNudge(productId) {
+  const product = products.value.find((item) => item.id === productId);
+  clearPromotionalDwellTimer();
+
+  if (!product || promotedDwellProducts.has(productId)) return;
+  if (!token.value || isAdminUser.value || page.value !== 'products') return;
+  if (selectedProductId.value !== productId || document.visibilityState === 'hidden') return;
+  if (aiSending.value || promotionalNudgeSending.value) return;
+
+  promotedDwellProducts.add(productId);
+  promotionalNudgeSending.value = true;
+  aiType.value = 'seller';
+  aiProductId.value = productId;
+  aiOpen.value = true;
+  aiSending.value = true;
+
+  await loadAiHistory('seller');
+  void trackBehavior('view_product', {
+    productId,
+    durationMs: PROMOTIONAL_DWELL_MS,
+    source: 'long-product-dwell',
+    trigger: 'promotional_ai',
+  });
+
+  try {
+    const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS);
+    aiHistory.seller = [
+      ...aiHistory.seller,
+      {
+        role: 'assistant',
+        content: result.response,
+        product_id: productId,
+      },
+    ];
+    await nextTick();
+  } catch (error) {
+    if (error.status === 401) {
+      openAuth('login');
+    } else {
+      toast(error.message || t('toast.aiFailed'), 'error');
+    }
+  } finally {
+    aiSending.value = false;
+    promotionalNudgeSending.value = false;
   }
 }
 
@@ -2583,6 +2670,8 @@ async function submitAuth() {
 }
 
 async function logout() {
+  clearPromotionalDwellTimer();
+  promotedDwellProducts.clear();
   try {
     await AuthAPI.logout();
   } catch {

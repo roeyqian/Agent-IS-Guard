@@ -136,6 +136,15 @@ export const AIAPI = {
       method: 'POST',
       body: JSON.stringify({ message, aiType, productId }),
     }),
+  promotionalNudge: (productId, dwellMs) =>
+    request('/ai/promotional-nudge', {
+      method: 'POST',
+      body: JSON.stringify({
+        productId,
+        dwellMs,
+        source: 'long-product-dwell',
+      }),
+    }),
   getHistory: (aiType = null) =>
     request(`/ai/history${aiType ? `?aiType=${aiType}` : ''}`),
 };

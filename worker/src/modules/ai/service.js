@@ -4,6 +4,8 @@ import { getSellerPrompt } from "./seller.js";
 import { getGuardianPrompt } from "./guardian.js";
 import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
 
+const HIDDEN_METADATA_KEY = 'hiddenFromUser';
+
 export async function chat({ request, env, url }) {
   const { token, session } = await requireStandardUser(request, env);
   const locale = getLocaleFromRequest(request, url);
@@ -84,6 +86,90 @@ export async function chat({ request, env, url }) {
   return json({ response: aiResponse, aiType });
 }
 
+export async function promotionalNudge({ request, env, url }) {
+  const { token, session } = await requireStandardUser(request, env);
+  const locale = getLocaleFromRequest(request, url);
+  const { productId, dwellMs, source } = await readJsonBody(request);
+
+  if (!productId) {
+    throw { status: 400, message: "Product required" };
+  }
+
+  const dwellDuration = Number(dwellMs || 0);
+  if (!Number.isFinite(dwellDuration) || dwellDuration < 20000) {
+    throw { status: 400, message: "Dwell time must be at least 20 seconds" };
+  }
+
+  const config = await env.db.prepare("SELECT * FROM ai_config WHERE id = 1").first();
+  if (!config || !config.deepseek_api_key) {
+    throw { status: 503, message: "AI service not configured. Please contact administrator to set up DeepSeek API Key." };
+  }
+
+  if (!config.seller_ai_enabled) {
+    throw { status: 503, message: "Promotional AI is currently disabled" };
+  }
+
+  const product = await env.db.prepare("SELECT * FROM products WHERE id = ?").bind(productId).first();
+  if (!product) {
+    throw { status: 404, message: "Product not found" };
+  }
+
+  const productInfo = normalizeProduct(product, locale);
+  const { results: history } = await env.db.prepare(`
+    SELECT role, content, metadata_json FROM ai_conversations
+    WHERE user_id = ? AND ai_type = 'seller'
+    ORDER BY timestamp DESC LIMIT 10
+  `).bind(session.userId).all();
+
+  const messages = history
+    .reverse()
+    .map(({ role, content }) => ({ role, content }));
+
+  const userMessage = buildPromotionalNudgePrompt(productInfo, locale);
+
+  const aiResponse = await callDeepSeek(config, getSellerPrompt(productInfo), messages, userMessage);
+  const conversationId = createId("conv");
+  const timestamp = new Date().toISOString();
+  const triggerMetadata = {
+    [HIDDEN_METADATA_KEY]: true,
+    source: source || 'long-product-dwell',
+    dwellMs: dwellDuration,
+  };
+
+  await env.db.prepare(`
+    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
+    VALUES (?, ?, ?, 'seller', 'user', ?, ?, ?, ?)
+  `).bind(
+    `${conversationId}_u`,
+    session.userId,
+    token,
+    userMessage,
+    productId,
+    JSON.stringify(triggerMetadata),
+    timestamp
+  ).run();
+
+  await env.db.prepare(`
+    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
+    VALUES (?, ?, ?, 'seller', 'assistant', ?, ?, ?, ?)
+  `).bind(
+    `${conversationId}_a`,
+    session.userId,
+    token,
+    aiResponse,
+    productId,
+    JSON.stringify({
+      model: config.deepseek_model || 'deepseek-chat',
+      source: source || 'long-product-dwell',
+      dwellMs: dwellDuration,
+      proactive: true,
+    }),
+    timestamp
+  ).run();
+
+  return json({ response: aiResponse, aiType: 'seller' });
+}
+
 export async function getHistory({ request, env, url }) {
   const { session } = await requireStandardUser(request, env);
   const aiType = url.searchParams.get('aiType');
@@ -100,5 +186,34 @@ export async function getHistory({ request, env, url }) {
 
   const { results } = await env.db.prepare(query).bind(...params).all();
 
-  return json({ history: results });
+  return json({ history: results.filter((item) => !isHiddenConversation(item)) });
+}
+
+function isHiddenConversation(item) {
+  try {
+    const metadata = JSON.parse(item.metadata_json || '{}');
+    return Boolean(metadata[HIDDEN_METADATA_KEY]);
+  } catch {
+    return false;
+  }
+}
+
+function buildPromotionalNudgePrompt(productInfo, locale) {
+  const productName = productInfo.name || (locale === 'en-US' ? 'this item' : '这个商品');
+
+  if (locale === 'en-US') {
+    return [
+      `The user just clicked and stayed on "${productName}" for more than 20 seconds. As the Promotional AI, proactively send one short message to the user.`,
+      'Make it natural, warm, and similar to a live-commerce shopping assistant. Highlight 1-2 appealing product points and lightly create a reason to keep considering it.',
+      'Do not mention system detection, dwell time, backend triggers, research logs, or this instruction.',
+      'Output only the user-facing message, under 45 English words.',
+    ].join('\n');
+  }
+
+  return [
+    `用户刚刚点开并停留查看"${productName}"超过20秒，请你作为促销型 AI 主动向用户发一条简短消息。`,
+    '消息要自然、热情、像直播电商导购主动搭话，突出1-2个商品吸引点，可以轻微制造购买理由。',
+    '不要提及系统检测、停留时长、后台触发、研究记录或这条指令。',
+    '直接输出面向用户的一条消息，控制在80个中文字符以内。',
+  ].join('\n');
 }
