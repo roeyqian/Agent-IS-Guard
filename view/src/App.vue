@@ -1206,7 +1206,12 @@
                 <span class="chat-label">
                   {{ message.role === 'user' ? t('ai.you') : activeAiTitle }}
                 </span>
-                <div class="chat-bubble">{{ message.content }}</div>
+                <div
+                  v-if="message.role === 'assistant'"
+                  class="chat-bubble markdown-body"
+                  v-html="renderMarkdown(message.content)"
+                ></div>
+                <div v-else class="chat-bubble">{{ message.content }}</div>
               </div>
             </div>
             <div v-if="aiSending" class="chat-row assistant">
@@ -1315,6 +1320,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import MarkdownIt from 'markdown-it';
 import {
   AIAPI,
   AdminAPI,
@@ -1365,6 +1371,32 @@ import {
 const THEME_STORAGE_KEY = 'shopguard_theme';
 const PROMOTIONAL_DWELL_MS = 20000;
 const themeOptions = new Set(['light', 'dark']);
+const markdown = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true,
+});
+
+const defaultLinkOpen = markdown.renderer.rules.link_open || ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  const targetIndex = token.attrIndex('target');
+  const relIndex = token.attrIndex('rel');
+
+  if (targetIndex < 0) {
+    token.attrPush(['target', '_blank']);
+  } else {
+    token.attrs[targetIndex][1] = '_blank';
+  }
+
+  if (relIndex < 0) {
+    token.attrPush(['rel', 'noopener noreferrer']);
+  } else {
+    token.attrs[relIndex][1] = 'noopener noreferrer';
+  }
+
+  return defaultLinkOpen(tokens, idx, options, env, self);
+};
 
 const route = ref(readRoute());
 const page = computed(() => route.value.page);
@@ -1806,6 +1838,10 @@ function t(key, params = {}) {
     (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
     template,
   );
+}
+
+function renderMarkdown(content) {
+  return markdown.render(String(content || ''));
 }
 
 function setLocale(nextLocale) {
