@@ -1161,6 +1161,39 @@ img {
   background: var(--surface-soft);
 }
 
+.pressure-scene {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(var(--accent-rgb), 0.08), transparent 56%),
+    var(--button-bg);
+}
+
+.pressure-scene-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.pressure-scene-head strong,
+.pressure-cue-copy strong {
+  display: block;
+  min-width: 0;
+}
+
+.pressure-scene-head span:not(.pressure-scene-icon),
+.pressure-cue-copy span,
+.pressure-cue-meta,
+.pressure-recommendation {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .pressure-summary {
   display: grid;
   gap: 12px;
@@ -1181,22 +1214,34 @@ img {
   gap: 10px;
 }
 
+.pressure-cue-list {
+  display: grid;
+  gap: 8px;
+}
+
 .intervention-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 6px 10px;
   min-height: 94px;
   padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: inherit;
   text-align: left;
   background: var(--button-bg);
 }
 
 .pressure-cue {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
-  min-height: 96px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 72px;
   padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: inherit;
   text-align: left;
   background: var(--button-bg);
 }
@@ -1214,6 +1259,42 @@ img {
 
 .pressure-cue.active {
   background: var(--accent-soft);
+}
+
+.pressure-cue-status {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.pressure-cue.active .pressure-cue-status {
+  border-color: var(--accent-border);
+  background: var(--accent);
+  color: #fff;
+}
+
+.pressure-cue-copy {
+  min-width: 0;
+}
+
+.pressure-cue-meta {
+  align-self: start;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  white-space: nowrap;
+}
+
+.pressure-cue.active .pressure-cue-meta {
+  border-color: var(--accent-border);
+  background: var(--button-bg);
+  color: var(--accent-strong);
 }
 
 .intervention-icon {
@@ -1234,8 +1315,7 @@ img {
   align-self: center;
 }
 
-.intervention-card span:last-child,
-.pressure-cue span:last-child {
+.intervention-card span:last-child {
   grid-column: 1 / -1;
   color: var(--muted);
   font-size: 0.88rem;
@@ -1300,8 +1380,38 @@ img {
   transition: width var(--motion-med) var(--ease-out);
 }
 
+.pressure-signal-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 27px;
+}
+
+.pressure-signal-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pressure-signal-strip .pressure-signal-pill {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .pressure-recommendation {
   margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
   line-height: 1.55;
 }
 
@@ -2223,6 +2333,17 @@ textarea:focus-visible {
   .intervention-grid,
   .pressure-cue-grid {
     grid-template-columns: 1fr;
+  }
+
+  .pressure-cue {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pressure-cue-meta {
+    grid-column: 2;
+    width: max-content;
+    max-width: 100%;
+    white-space: normal;
   }
 
   .ai-drawer {

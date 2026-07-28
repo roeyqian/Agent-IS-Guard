@@ -301,30 +301,60 @@
                   </span>
                 </div>
 
-                <div class="pressure-meter">
-                  <div>
-                    <strong>{{ pressureScore }}</strong>
-                    <span>{{ t('pressure.score') }}</span>
+                <div class="pressure-scene">
+                  <div class="pressure-scene-head">
+                    <span class="intervention-icon pressure-scene-icon">
+                      <Sparkles :size="16" />
+                    </span>
+                    <div>
+                      <strong>{{ t('pressure.sceneTitle') }}</strong>
+                      <span>
+                        {{ t('pressure.sceneBody', {
+                          name: selectedProduct.name,
+                          price: formatMoney(selectedProduct.price),
+                        }) }}
+                      </span>
+                    </div>
                   </div>
-                  <div class="pressure-track">
-                    <i :style="{ width: `${pressureScore}%` }"></i>
+
+                  <div class="pressure-meter">
+                    <div>
+                      <strong>{{ pressureScore }}</strong>
+                      <span>{{ t('pressure.score') }}</span>
+                    </div>
+                    <div class="pressure-track">
+                      <i :style="{ width: `${pressureScore}%` }"></i>
+                    </div>
+                  </div>
+
+                  <div class="pressure-signal-strip">
+                    <span v-if="!activePressureCues.length" class="pressure-signal-empty">{{ t('pressure.noCue') }}</span>
+                    <span v-for="item in activePressureCues" v-else :key="item.key" class="pressure-signal-pill">
+                      {{ item.label }}
+                    </span>
                   </div>
                 </div>
 
-                <div class="pressure-cue-grid">
+                <div class="pressure-cue-list">
                   <button
                     v-for="item in pressureCueCards"
                     :key="item.key"
                     class="pressure-cue"
                     :class="{ active: pressureProbe[item.key] }"
+                    :aria-pressed="pressureProbe[item.key]"
                     type="button"
                     @click="togglePressureCue(item.key)"
                   >
-                    <span class="intervention-icon">
-                      <component :is="item.icon" :size="16" />
+                    <span class="pressure-cue-status">
+                      <component :is="pressureProbe[item.key] ? ShieldCheck : item.icon" :size="16" />
                     </span>
-                    <strong>{{ item.label }}</strong>
-                    <span>{{ item.body }}</span>
+                    <span class="pressure-cue-copy">
+                      <strong>{{ item.scene }}</strong>
+                      <span>{{ item.body }}</span>
+                    </span>
+                    <span class="pressure-cue-meta">
+                      {{ item.label }} · +{{ item.weight }}
+                    </span>
                   </button>
                 </div>
 
@@ -1745,6 +1775,7 @@ const pressureCueCards = computed(() => [
     icon: Clock3,
     weight: 28,
     label: t('pressure.urgency'),
+    scene: t('pressure.urgencyScene'),
     body: t('pressure.urgencyBody'),
   },
   {
@@ -1752,6 +1783,7 @@ const pressureCueCards = computed(() => [
     icon: Package2,
     weight: 24,
     label: t('pressure.scarcity'),
+    scene: t('pressure.scarcityScene'),
     body: t('pressure.scarcityBody'),
   },
   {
@@ -1759,6 +1791,7 @@ const pressureCueCards = computed(() => [
     icon: UserRound,
     weight: 22,
     label: t('pressure.socialProof'),
+    scene: t('pressure.socialProofScene'),
     body: t('pressure.socialProofBody'),
   },
   {
@@ -1766,6 +1799,7 @@ const pressureCueCards = computed(() => [
     icon: Sparkles,
     weight: 26,
     label: t('pressure.anchorDiscount'),
+    scene: t('pressure.anchorDiscountScene'),
     body: t('pressure.anchorDiscountBody'),
   },
 ]);
