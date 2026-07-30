@@ -266,6 +266,98 @@
                 {{ selectedProduct.description || selectedProduct.subtitle || t('detail.noDescription') }}
               </p>
 
+              <div v-if="!isAdminUser" class="buymate-live-panel" :class="{ active: rationalModeEnabled }">
+                <div class="panel-head compact-head">
+                  <div>
+                    <h2>{{ t('buyMate.modeTitle') }}</h2>
+                    <p>{{ t('buyMate.modeSubtitle') }}</p>
+                  </div>
+                  <button class="ghost-btn" type="button" @click="toggleRationalMode">
+                    <ShieldCheck :size="16" />
+                    {{ rationalModeEnabled ? t('buyMate.modeOn') : t('buyMate.modeOff') }}
+                  </button>
+                </div>
+
+                <div class="buymate-control-row">
+                  <span class="buy-mate-principle">{{ t('buyMate.principle') }}</span>
+                </div>
+
+                <template v-if="rationalModeEnabled">
+                  <div class="pitch-reframe-card">
+                    <span class="buy-mate-star" :class="{ pulsing: rationalModeEnabled }">
+                      <Sparkles :size="18" />
+                    </span>
+                    <div class="pitch-reframe-copy">
+                      <span class="pitch-detected">
+                        {{ t('buyMate.detectedKeyword', { keyword: buyMateActivePitch.keyword }) }}
+                      </span>
+                      <strong>{{ buyMateActivePitch.label }}</strong>
+                      <p>{{ buyMateActivePitch.advice }}</p>
+                    </div>
+                    <button
+                      class="ghost-btn compact-btn"
+                      type="button"
+                      :title="t('buyMate.nextPitch')"
+                      @click="nextSalesPitchCue"
+                    >
+                      <RefreshCcw :size="15" />
+                      {{ t('buyMate.nextPitch') }}
+                    </button>
+                  </div>
+
+                  <div class="comparison-module">
+                    <button class="comparison-trigger" type="button" @click="toggleComparisonPanel">
+                      <span>
+                        <BarChart3 :size="16" />
+                        {{ t('buyMate.similarComparison') }}
+                      </span>
+                      <ChevronRight :class="{ open: comparisonOpen }" :size="16" />
+                    </button>
+
+                    <div v-if="comparisonOpen" class="comparison-strip">
+                      <button
+                        v-for="item in similarComparisonProducts"
+                        :key="item.id"
+                        class="comparison-card"
+                        type="button"
+                        @click="pickProduct(item.id)"
+                      >
+                        <img v-if="productImage(item)" :src="productImage(item)" :alt="item.name" />
+                        <div v-else class="comparison-thumb">
+                          <Package2 :size="18" />
+                        </div>
+                        <div class="comparison-copy">
+                          <span>{{ comparisonPriceDelta(item) }}</span>
+                          <strong>{{ item.name }}</strong>
+                          <p>{{ comparisonReason(item) }}</p>
+                          <div class="comparison-meta">
+                            <span>{{ t('buyMate.salesVolume', { count: Number(item.sales_count || item.sales || 0) }) }}</span>
+                            <span>{{ t('detail.rating') }} {{ Number(item.rating || 0).toFixed(1) }}</span>
+                            <span>{{ returnPolicyLabel(item) }}</span>
+                          </div>
+                        </div>
+                      </button>
+
+                      <div v-if="!similarComparisonProducts.length" class="empty-state compact">
+                        <strong>{{ t('buyMate.noComparisonTitle') }}</strong>
+                        <span>{{ t('buyMate.noComparisonBody') }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="buy-mate-action-row">
+                    <button class="secondary-btn" type="button" @click="askGuardianForPitch">
+                      <MessageSquareMore :size="16" />
+                      {{ t('buyMate.reframeWithGuardian') }}
+                    </button>
+                    <button class="secondary-btn" type="button" @click="startIntervention(interventionCards[1])">
+                      <BarChart3 :size="16" />
+                      {{ t('buyMate.compareWithGuardian') }}
+                    </button>
+                  </div>
+                </template>
+              </div>
+
               <div v-if="!isAdminUser" class="intervention-panel">
                 <div class="panel-head compact-head">
                   <div>
@@ -1692,6 +1784,9 @@ const aiHistory = reactive({
   seller: [],
   guardian: [],
 });
+const rationalModeEnabled = ref(true);
+const activePitchIndex = ref(0);
+const comparisonOpen = ref(false);
 const promotionalDwellTimer = ref(null);
 const promotionalDwellProductId = ref('');
 const promotionalNudgeSending = ref(false);
@@ -1800,6 +1895,8 @@ watch(
     if (promotionalDwellProductId.value && promotionalDwellProductId.value !== next) {
       clearPromotionalDwellTimer();
     }
+    activePitchIndex.value = 0;
+    comparisonOpen.value = false;
     if (!next) {
       productInsights.value = null;
       return;
@@ -1970,6 +2067,94 @@ const interventionCards = computed(() => {
       prompt: t('buyMate.delayPrompt', { name: productName }),
     },
   ];
+});
+const buyMatePitchCategories = computed(() => {
+  const productName = selectedProduct.value?.name || t('common.product');
+  return [
+    {
+      key: 'absolute_description',
+      icon: Sparkles,
+      keyword: t('buyMate.keyword.absolute'),
+      label: t('buyMate.pitch.absolute'),
+      advice: t('buyMate.pitch.absoluteAdvice'),
+      prompt: t('buyMate.pitchPrompt.absolute', { name: productName }),
+    },
+    {
+      key: 'emotional_manipulation',
+      icon: MessageSquareMore,
+      keyword: t('buyMate.keyword.emotion'),
+      label: t('buyMate.pitch.emotion'),
+      advice: t('buyMate.pitch.emotionAdvice'),
+      prompt: t('buyMate.pitchPrompt.emotion', { name: productName }),
+    },
+    {
+      key: 'urgency',
+      icon: Clock3,
+      keyword: t('buyMate.keyword.urgency'),
+      label: t('buyMate.pitch.urgency'),
+      advice: t('buyMate.pitch.urgencyAdvice'),
+      prompt: t('buyMate.pitchPrompt.urgency', { name: productName }),
+    },
+    {
+      key: 'group_pressure',
+      icon: UserRound,
+      keyword: t('buyMate.keyword.group'),
+      label: t('buyMate.pitch.group'),
+      advice: t('buyMate.pitch.groupAdvice'),
+      prompt: t('buyMate.pitchPrompt.group', { name: productName }),
+    },
+    {
+      key: 'vague_logic',
+      icon: Filter,
+      keyword: t('buyMate.keyword.logic'),
+      label: t('buyMate.pitch.logic'),
+      advice: t('buyMate.pitch.logicAdvice'),
+      prompt: t('buyMate.pitchPrompt.logic', { name: productName }),
+    },
+  ];
+});
+const buyMateActivePitch = computed(() => {
+  const pitches = buyMatePitchCategories.value;
+  return pitches[activePitchIndex.value % pitches.length] || pitches[0];
+});
+const similarComparisonProducts = computed(() => {
+  const product = selectedProduct.value;
+  if (!product) return [];
+
+  const currentPrice = Number(product.price || 0);
+  const currentBrand = getProductBrand(product);
+  const candidates = products.value
+    .filter((item) => item.id !== product.id && item.category_id === product.category_id)
+    .map((item) => {
+      const price = Number(item.price || 0);
+      const priceSimilarity = currentPrice ? 1 - Math.min(1, Math.abs(price - currentPrice) / currentPrice) : 0;
+      const salesScore = Math.min(1, Number(item.sales_count || item.sales || 0) / 9000);
+      const ratingScore = Number(item.rating || 0) / 5;
+      const diversityBonus = getProductBrand(item) !== currentBrand ? 0.12 : 0;
+      return {
+        item,
+        score: salesScore * 0.42 + ratingScore * 0.28 + priceSimilarity * 0.18 + diversityBonus,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const shortlist = [];
+  const seenBrands = new Set();
+  candidates.forEach(({ item }) => {
+    const brand = getProductBrand(item);
+    if (shortlist.length < 3 && !seenBrands.has(brand)) {
+      shortlist.push(item);
+      seenBrands.add(brand);
+    }
+  });
+
+  candidates.forEach(({ item }) => {
+    if (shortlist.length < 3 && !shortlist.some((entry) => entry.id === item.id)) {
+      shortlist.push(item);
+    }
+  });
+
+  return shortlist.slice(0, 3);
 });
 const checkoutChecklist = computed(() =>
   interventionCards.value.map((item) => ({
@@ -2343,6 +2528,57 @@ function applyAiPrompt(prompt) {
   void nextTick(() => aiInputEl.value?.focus());
 }
 
+function toggleRationalMode() {
+  rationalModeEnabled.value = !rationalModeEnabled.value;
+  void trackBehavior('intervention_check', {
+    productId: selectedProduct.value?.id || null,
+    strategy: 'rational_support_mode',
+    enabled: rationalModeEnabled.value,
+    source: page.value,
+  });
+}
+
+function toggleComparisonPanel() {
+  comparisonOpen.value = !comparisonOpen.value;
+  void trackBehavior('intervention_check', {
+    productId: selectedProduct.value?.id || null,
+    strategy: 'similar_product_comparison',
+    expanded: comparisonOpen.value,
+    shortlistCount: similarComparisonProducts.value.length,
+    source: page.value,
+  });
+}
+
+function nextSalesPitchCue() {
+  activePitchIndex.value = (activePitchIndex.value + 1) % buyMatePitchCategories.value.length;
+  void trackBehavior('intervention_check', {
+    productId: selectedProduct.value?.id || null,
+    strategy: 'sales_pitch_reframe',
+    pitchType: buyMateActivePitch.value.key,
+    keyword: buyMateActivePitch.value.keyword,
+    source: page.value,
+  });
+}
+
+function askGuardianForPitch() {
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  const pitch = buyMateActivePitch.value;
+  const productId = selectedProduct.value?.id || null;
+  void trackBehavior('intervention_check', {
+    productId,
+    strategy: 'sales_pitch_reframe_guardian',
+    pitchType: pitch.key,
+    keyword: pitch.keyword,
+    source: page.value,
+  });
+  aiType.value = 'guardian';
+  aiProductId.value = productId || '';
+  aiMessage.value = pitch.prompt;
+  aiOpen.value = true;
+  loadAiHistory('guardian');
+  void nextTick(() => aiInputEl.value?.focus());
+}
+
 function startIntervention(item, product = selectedProduct.value) {
   if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
   const productId = product?.id || selectedProduct.value?.id || null;
@@ -2440,6 +2676,41 @@ function productSpecs(product) {
     key,
     value: String(value),
   }));
+}
+
+function getProductBrand(product) {
+  return String(product?.name || '')
+    .trim()
+    .split(/\s+/)[0]
+    .toLowerCase() || product?.id || 'unknown';
+}
+
+function comparisonPriceDelta(product) {
+  const currentPrice = Number(selectedProduct.value?.price || 0);
+  const price = Number(product?.price || 0);
+  if (!currentPrice || !price) return formatMoney(price);
+  const delta = price - currentPrice;
+  if (Math.abs(delta) < 0.01) return t('buyMate.samePrice');
+  const amount = formatMoney(Math.abs(delta));
+  return delta > 0
+    ? t('buyMate.priceHigher', { amount })
+    : t('buyMate.priceLower', { amount });
+}
+
+function comparisonReason(product) {
+  const sales = Number(product?.sales_count || product?.sales || 0);
+  const rating = Number(product?.rating || 0).toFixed(1);
+  const stock = Number(product?.stock || 0);
+  return t('buyMate.comparisonReason', {
+    sales,
+    rating,
+    stock,
+  });
+}
+
+function returnPolicyLabel(product) {
+  const specs = product?.specs || {};
+  return specs.return_policy || specs.returnPolicy || t('buyMate.returnPolicyDefault');
 }
 
 function statusLabel(status) {
