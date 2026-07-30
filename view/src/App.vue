@@ -1514,6 +1514,8 @@ import {
 const THEME_STORAGE_KEY = 'shopguard_theme';
 const PROMOTIONAL_DWELL_MS = 20000;
 const PROMOTIONAL_UNANSWERED_LIMIT = 2;
+const PRESSURE_PAGE_SIZE = 3;
+const PRESSURE_GROUPS_PER_RUN = 4;
 const themeOptions = new Set(['light', 'dark']);
 const markdown = new MarkdownIt({
   html: false,
@@ -1541,6 +1543,99 @@ markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
 
   return defaultLinkOpen(tokens, idx, options, env, self);
 };
+
+const pressureQuestionGroups = [
+  [
+    pressureQuestionSpec('urgency_countdown', 'urgency', Clock3, 12, 'pressure.urgency', 'pressure.urgencyScene', 'pressure.urgencyBody'),
+    pressureQuestionSpec('scarcity_stock', 'scarcity', Package2, 11, 'pressure.scarcity', 'pressure.scarcityStockScene', 'pressure.scarcityStockBody'),
+    pressureQuestionSpec('social_barrage', 'social_proof', UserRound, 10, 'pressure.socialProof', 'pressure.socialProofScene', 'pressure.socialProofBody'),
+  ],
+  [
+    pressureQuestionSpec('anchor_price', 'anchor_discount', Sparkles, 12, 'pressure.anchorDiscount', 'pressure.anchorDiscountScene', 'pressure.anchorDiscountBody'),
+    pressureQuestionSpec('urgency_host', 'urgency', Clock3, 11, 'pressure.urgency', 'pressure.urgencyHostScene', 'pressure.urgencyHostBody'),
+    pressureQuestionSpec('scarcity_gift', 'scarcity', Package2, 10, 'pressure.scarcity', 'pressure.scarcityGiftScene', 'pressure.scarcityGiftBody'),
+  ],
+  [
+    pressureQuestionSpec('social_rank', 'social_proof', UserRound, 10, 'pressure.socialProof', 'pressure.socialRankScene', 'pressure.socialRankBody'),
+    pressureQuestionSpec('anchor_bundle', 'anchor_discount', Sparkles, 10, 'pressure.anchorDiscount', 'pressure.anchorBundleScene', 'pressure.anchorBundleBody'),
+    pressureQuestionSpec('urgency_payment', 'urgency', Clock3, 9, 'pressure.urgency', 'pressure.urgencyPaymentScene', 'pressure.urgencyPaymentBody'),
+  ],
+  [
+    pressureQuestionSpec('scarcity_access', 'scarcity', Package2, 9, 'pressure.scarcity', 'pressure.scarcityAccessScene', 'pressure.scarcityAccessBody'),
+    pressureQuestionSpec('social_compare', 'social_proof', UserRound, 8, 'pressure.socialProof', 'pressure.socialCompareScene', 'pressure.socialCompareBody'),
+    pressureQuestionSpec('anchor_installment', 'anchor_discount', Sparkles, 8, 'pressure.anchorDiscount', 'pressure.anchorInstallmentScene', 'pressure.anchorInstallmentBody'),
+  ],
+  [
+    pressureQuestionSpec('urgency_deadline', 'urgency', Clock3, 11, 'pressure.urgency', 'pressure.urgencyDeadlineScene', 'pressure.urgencyDeadlineBody'),
+    pressureQuestionSpec('scarcity_waitlist', 'scarcity', Package2, 9, 'pressure.scarcity', 'pressure.scarcityWaitlistScene', 'pressure.scarcityWaitlistBody'),
+    pressureQuestionSpec('anchor_membership', 'anchor_discount', Sparkles, 9, 'pressure.anchorDiscount', 'pressure.anchorMembershipScene', 'pressure.anchorMembershipBody'),
+  ],
+  [
+    pressureQuestionSpec('social_friend_circle', 'social_proof', UserRound, 9, 'pressure.socialProof', 'pressure.socialFriendCircleScene', 'pressure.socialFriendCircleBody'),
+    pressureQuestionSpec('urgency_restock', 'urgency', Clock3, 10, 'pressure.urgency', 'pressure.urgencyRestockScene', 'pressure.urgencyRestockBody'),
+    pressureQuestionSpec('scarcity_live_quota', 'scarcity', Package2, 11, 'pressure.scarcity', 'pressure.scarcityLiveQuotaScene', 'pressure.scarcityLiveQuotaBody'),
+  ],
+  [
+    pressureQuestionSpec('anchor_free_shipping', 'anchor_discount', Sparkles, 8, 'pressure.anchorDiscount', 'pressure.anchorFreeShippingScene', 'pressure.anchorFreeShippingBody'),
+    pressureQuestionSpec('social_review_surge', 'social_proof', UserRound, 9, 'pressure.socialProof', 'pressure.socialReviewSurgeScene', 'pressure.socialReviewSurgeBody'),
+    pressureQuestionSpec('urgency_flash_window', 'urgency', Clock3, 12, 'pressure.urgency', 'pressure.urgencyFlashWindowScene', 'pressure.urgencyFlashWindowBody'),
+  ],
+  [
+    pressureQuestionSpec('scarcity_color_size', 'scarcity', Package2, 8, 'pressure.scarcity', 'pressure.scarcityColorSizeScene', 'pressure.scarcityColorSizeBody'),
+    pressureQuestionSpec('anchor_coupon_expiry', 'anchor_discount', Sparkles, 10, 'pressure.anchorDiscount', 'pressure.anchorCouponExpiryScene', 'pressure.anchorCouponExpiryBody'),
+    pressureQuestionSpec('social_expert', 'social_proof', UserRound, 8, 'pressure.socialProof', 'pressure.socialExpertScene', 'pressure.socialExpertBody'),
+  ],
+  [
+    pressureQuestionSpec('urgency_cart_timer', 'urgency', Clock3, 10, 'pressure.urgency', 'pressure.urgencyCartTimerScene', 'pressure.urgencyCartTimerBody'),
+    pressureQuestionSpec('scarcity_preorder', 'scarcity', Package2, 10, 'pressure.scarcity', 'pressure.scarcityPreorderScene', 'pressure.scarcityPreorderBody'),
+    pressureQuestionSpec('anchor_crossed_compare', 'anchor_discount', Sparkles, 9, 'pressure.anchorDiscount', 'pressure.anchorCrossedCompareScene', 'pressure.anchorCrossedCompareBody'),
+  ],
+  [
+    pressureQuestionSpec('social_chat_order', 'social_proof', UserRound, 10, 'pressure.socialProof', 'pressure.socialChatOrderScene', 'pressure.socialChatOrderBody'),
+    pressureQuestionSpec('urgency_trial_end', 'urgency', Clock3, 8, 'pressure.urgency', 'pressure.urgencyTrialEndScene', 'pressure.urgencyTrialEndBody'),
+    pressureQuestionSpec('scarcity_price_tier', 'scarcity', Package2, 9, 'pressure.scarcity', 'pressure.scarcityPriceTierScene', 'pressure.scarcityPriceTierBody'),
+  ],
+  [
+    pressureQuestionSpec('anchor_deposit', 'anchor_discount', Sparkles, 11, 'pressure.anchorDiscount', 'pressure.anchorDepositScene', 'pressure.anchorDepositBody'),
+    pressureQuestionSpec('social_city_rank', 'social_proof', UserRound, 8, 'pressure.socialProof', 'pressure.socialCityRankScene', 'pressure.socialCityRankBody'),
+    pressureQuestionSpec('urgency_service_call', 'urgency', Clock3, 9, 'pressure.urgency', 'pressure.urgencyServiceCallScene', 'pressure.urgencyServiceCallBody'),
+  ],
+  [
+    pressureQuestionSpec('scarcity_creator_drop', 'scarcity', Package2, 11, 'pressure.scarcity', 'pressure.scarcityCreatorDropScene', 'pressure.scarcityCreatorDropBody'),
+    pressureQuestionSpec('anchor_cashback', 'anchor_discount', Sparkles, 8, 'pressure.anchorDiscount', 'pressure.anchorCashbackScene', 'pressure.anchorCashbackBody'),
+    pressureQuestionSpec('social_return_claim', 'social_proof', UserRound, 9, 'pressure.socialProof', 'pressure.socialReturnClaimScene', 'pressure.socialReturnClaimBody'),
+  ],
+  [
+    pressureQuestionSpec('urgency_last_slot', 'urgency', Clock3, 10, 'pressure.urgency', 'pressure.urgencyLastSlotScene', 'pressure.urgencyLastSlotBody'),
+    pressureQuestionSpec('scarcity_bundle_limit', 'scarcity', Package2, 9, 'pressure.scarcity', 'pressure.scarcityBundleLimitScene', 'pressure.scarcityBundleLimitBody'),
+    pressureQuestionSpec('social_video_count', 'social_proof', UserRound, 8, 'pressure.socialProof', 'pressure.socialVideoCountScene', 'pressure.socialVideoCountBody'),
+  ],
+  [
+    pressureQuestionSpec('anchor_threshold', 'anchor_discount', Sparkles, 10, 'pressure.anchorDiscount', 'pressure.anchorThresholdScene', 'pressure.anchorThresholdBody'),
+    pressureQuestionSpec('urgency_price_jump', 'urgency', Clock3, 11, 'pressure.urgency', 'pressure.urgencyPriceJumpScene', 'pressure.urgencyPriceJumpBody'),
+    pressureQuestionSpec('scarcity_backorder', 'scarcity', Package2, 9, 'pressure.scarcity', 'pressure.scarcityBackorderScene', 'pressure.scarcityBackorderBody'),
+  ],
+  [
+    pressureQuestionSpec('social_match_stream', 'social_proof', UserRound, 9, 'pressure.socialProof', 'pressure.socialMatchStreamScene', 'pressure.socialMatchStreamBody'),
+    pressureQuestionSpec('anchor_upgrade_path', 'anchor_discount', Sparkles, 8, 'pressure.anchorDiscount', 'pressure.anchorUpgradePathScene', 'pressure.anchorUpgradePathBody'),
+    pressureQuestionSpec('urgency_checkout_hold', 'urgency', Clock3, 10, 'pressure.urgency', 'pressure.urgencyCheckoutHoldScene', 'pressure.urgencyCheckoutHoldBody'),
+  ],
+  [
+    pressureQuestionSpec('scarcity_samples_left', 'scarcity', Package2, 8, 'pressure.scarcity', 'pressure.scarcitySamplesLeftScene', 'pressure.scarcitySamplesLeftBody'),
+    pressureQuestionSpec('social_comment_counter', 'social_proof', UserRound, 9, 'pressure.socialProof', 'pressure.socialCommentCounterScene', 'pressure.socialCommentCounterBody'),
+    pressureQuestionSpec('anchor_split_price', 'anchor_discount', Sparkles, 9, 'pressure.anchorDiscount', 'pressure.anchorSplitPriceScene', 'pressure.anchorSplitPriceBody'),
+  ],
+  [
+    pressureQuestionSpec('urgency_midnight_end', 'urgency', Clock3, 11, 'pressure.urgency', 'pressure.urgencyMidnightEndScene', 'pressure.urgencyMidnightEndBody'),
+    pressureQuestionSpec('scarcity_waitlist_upgrade', 'scarcity', Package2, 9, 'pressure.scarcity', 'pressure.scarcityWaitlistUpgradeScene', 'pressure.scarcityWaitlistUpgradeBody'),
+    pressureQuestionSpec('social_expert_chain', 'social_proof', UserRound, 8, 'pressure.socialProof', 'pressure.socialExpertChainScene', 'pressure.socialExpertChainBody'),
+  ],
+  [
+    pressureQuestionSpec('anchor_price_lock', 'anchor_discount', Sparkles, 10, 'pressure.anchorDiscount', 'pressure.anchorPriceLockScene', 'pressure.anchorPriceLockBody'),
+    pressureQuestionSpec('urgency_inventory_alert', 'urgency', Clock3, 9, 'pressure.urgency', 'pressure.urgencyInventoryAlertScene', 'pressure.urgencyInventoryAlertBody'),
+    pressureQuestionSpec('social_friends_order', 'social_proof', UserRound, 9, 'pressure.socialProof', 'pressure.socialFriendsOrderScene', 'pressure.socialFriendsOrderBody'),
+  ],
+];
 
 const route = ref(readRoute());
 const page = computed(() => route.value.page);
@@ -1632,21 +1727,10 @@ const checkoutReflection = reactive({
 });
 const pressureOpen = ref(false);
 const pressurePage = ref(0);
-const pressurePageSize = 3;
-const pressureAnswers = reactive({
-  urgency_countdown: null,
-  scarcity_stock: null,
-  social_barrage: null,
-  anchor_price: null,
-  urgency_host: null,
-  scarcity_gift: null,
-  social_rank: null,
-  anchor_bundle: null,
-  urgency_payment: null,
-  scarcity_access: null,
-  social_compare: null,
-  anchor_installment: null,
-});
+const pressurePageSize = PRESSURE_PAGE_SIZE;
+const pressureQuestionSpecs = ref(createPressureQuestionSet());
+const pressureAnswers = reactive({});
+initializePressureAnswers(pressureQuestionSpecs.value);
 
 const toasts = ref([]);
 
@@ -1893,116 +1977,14 @@ const checkoutChecklist = computed(() =>
     label: item.label,
   })),
 );
-const pressureQuestions = computed(() => [
-  {
-    key: 'urgency_countdown',
-    cue: 'urgency',
-    icon: Clock3,
-    weight: 12,
-    label: t('pressure.urgency'),
-    scene: t('pressure.urgencyScene'),
-    body: t('pressure.urgencyBody'),
-  },
-  {
-    key: 'scarcity_stock',
-    cue: 'scarcity',
-    icon: Package2,
-    weight: 11,
-    label: t('pressure.scarcity'),
-    scene: t('pressure.scarcityStockScene'),
-    body: t('pressure.scarcityStockBody'),
-  },
-  {
-    key: 'social_barrage',
-    cue: 'social_proof',
-    icon: UserRound,
-    weight: 10,
-    label: t('pressure.socialProof'),
-    scene: t('pressure.socialProofScene'),
-    body: t('pressure.socialProofBody'),
-  },
-  {
-    key: 'anchor_price',
-    cue: 'anchor_discount',
-    icon: Sparkles,
-    weight: 12,
-    label: t('pressure.anchorDiscount'),
-    scene: t('pressure.anchorDiscountScene'),
-    body: t('pressure.anchorDiscountBody'),
-  },
-  {
-    key: 'urgency_host',
-    cue: 'urgency',
-    icon: Clock3,
-    weight: 11,
-    label: t('pressure.urgency'),
-    scene: t('pressure.urgencyHostScene'),
-    body: t('pressure.urgencyHostBody'),
-  },
-  {
-    key: 'scarcity_gift',
-    cue: 'scarcity',
-    icon: Package2,
-    weight: 10,
-    label: t('pressure.scarcity'),
-    scene: t('pressure.scarcityGiftScene'),
-    body: t('pressure.scarcityGiftBody'),
-  },
-  {
-    key: 'social_rank',
-    cue: 'social_proof',
-    icon: UserRound,
-    weight: 10,
-    label: t('pressure.socialProof'),
-    scene: t('pressure.socialRankScene'),
-    body: t('pressure.socialRankBody'),
-  },
-  {
-    key: 'anchor_bundle',
-    cue: 'anchor_discount',
-    icon: Sparkles,
-    weight: 10,
-    label: t('pressure.anchorDiscount'),
-    scene: t('pressure.anchorBundleScene'),
-    body: t('pressure.anchorBundleBody'),
-  },
-  {
-    key: 'urgency_payment',
-    cue: 'urgency',
-    icon: Clock3,
-    weight: 9,
-    label: t('pressure.urgency'),
-    scene: t('pressure.urgencyPaymentScene'),
-    body: t('pressure.urgencyPaymentBody'),
-  },
-  {
-    key: 'scarcity_access',
-    cue: 'scarcity',
-    icon: Package2,
-    weight: 9,
-    label: t('pressure.scarcity'),
-    scene: t('pressure.scarcityAccessScene'),
-    body: t('pressure.scarcityAccessBody'),
-  },
-  {
-    key: 'social_compare',
-    cue: 'social_proof',
-    icon: UserRound,
-    weight: 8,
-    label: t('pressure.socialProof'),
-    scene: t('pressure.socialCompareScene'),
-    body: t('pressure.socialCompareBody'),
-  },
-  {
-    key: 'anchor_installment',
-    cue: 'anchor_discount',
-    icon: Sparkles,
-    weight: 8,
-    label: t('pressure.anchorDiscount'),
-    scene: t('pressure.anchorInstallmentScene'),
-    body: t('pressure.anchorInstallmentBody'),
-  },
-]);
+const pressureQuestions = computed(() =>
+  pressureQuestionSpecs.value.map((item) => ({
+    ...item,
+    label: t(item.labelKey),
+    scene: t(item.sceneKey),
+    body: t(item.bodyKey),
+  })),
+);
 const pressureQuestionCount = computed(() => pressureQuestions.value.length);
 const pressurePageCount = computed(() => Math.ceil(pressureQuestionCount.value / pressurePageSize));
 const pressureVisibleQuestions = computed(() => {
@@ -2507,8 +2489,43 @@ function pressureCueName(value) {
   return label === `pressure.cue.${value || 'unknown'}` ? value || t('common.pending') : label;
 }
 
+function pressureQuestionSpec(key, cue, icon, weight, labelKey, sceneKey, bodyKey) {
+  return { key, cue, icon, weight, labelKey, sceneKey, bodyKey };
+}
+
+function shuffleItems(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function createPressureQuestionSet() {
+  return shuffleItems(pressureQuestionGroups)
+    .slice(0, PRESSURE_GROUPS_PER_RUN)
+    .flat();
+}
+
+function initializePressureAnswers(questions) {
+  Object.keys(pressureAnswers).forEach((key) => {
+    delete pressureAnswers[key];
+  });
+  questions.forEach((item) => {
+    pressureAnswers[item.key] = null;
+  });
+}
+
+function startPressureProbe() {
+  pressureQuestionSpecs.value = createPressureQuestionSet();
+  initializePressureAnswers(pressureQuestionSpecs.value);
+  pressurePage.value = 0;
+}
+
 function openPressureProbe() {
   if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  startPressureProbe();
   pressureOpen.value = true;
 }
 
@@ -2529,9 +2546,7 @@ function previousPressurePage() {
 }
 
 function resetPressureProbe() {
-  Object.keys(pressureAnswers).forEach((key) => {
-    pressureAnswers[key] = null;
-  });
+  initializePressureAnswers(pressureQuestionSpecs.value);
   pressurePage.value = 0;
 }
 
