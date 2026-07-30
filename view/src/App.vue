@@ -301,74 +301,30 @@
                   </span>
                 </div>
 
-                <div class="pressure-scene">
-                  <div class="pressure-scene-head">
-                    <span class="intervention-icon pressure-scene-icon">
-                      <Sparkles :size="16" />
+                <button class="pressure-launch-card" type="button" @click="openPressureProbe">
+                  <span class="pressure-launch-icon">
+                    <MessageSquareMore :size="20" />
+                  </span>
+                  <span class="pressure-launch-copy">
+                    <strong>{{ t('pressure.launchTitle') }}</strong>
+                    <span>
+                      {{ t('pressure.launchBody', {
+                        answered: pressureAnsweredCount,
+                        total: pressureQuestionCount,
+                      }) }}
                     </span>
-                    <div>
-                      <strong>{{ t('pressure.sceneTitle') }}</strong>
-                      <span>
-                        {{ t('pressure.sceneBody', {
-                          name: selectedProduct.name,
-                          price: formatMoney(selectedProduct.price),
-                        }) }}
-                      </span>
-                    </div>
-                  </div>
+                  </span>
+                  <span class="pressure-launch-score">
+                    <strong>{{ pressureScore }}</strong>
+                    <span>{{ t('pressure.score') }}</span>
+                  </span>
+                </button>
 
-                  <div class="pressure-meter">
-                    <div>
-                      <strong>{{ pressureScore }}</strong>
-                      <span>{{ t('pressure.score') }}</span>
-                    </div>
-                    <div class="pressure-track">
-                      <i :style="{ width: `${pressureScore}%` }"></i>
-                    </div>
-                  </div>
-
-                  <div class="pressure-signal-strip">
-                    <span v-if="!activePressureCues.length" class="pressure-signal-empty">{{ t('pressure.noCue') }}</span>
-                    <span v-for="item in activePressureCues" v-else :key="item.key" class="pressure-signal-pill">
-                      {{ item.label }}
-                    </span>
-                  </div>
-                </div>
-
-                <div class="pressure-cue-list">
-                  <button
-                    v-for="item in pressureCueCards"
-                    :key="item.key"
-                    class="pressure-cue"
-                    :class="{ active: pressureProbe[item.key] }"
-                    :aria-pressed="pressureProbe[item.key]"
-                    type="button"
-                    @click="togglePressureCue(item.key)"
-                  >
-                    <span class="pressure-cue-status">
-                      <component :is="pressureProbe[item.key] ? ShieldCheck : item.icon" :size="16" />
-                    </span>
-                    <span class="pressure-cue-copy">
-                      <strong>{{ item.scene }}</strong>
-                      <span>{{ item.body }}</span>
-                    </span>
-                    <span class="pressure-cue-meta">
-                      {{ item.label }} · +{{ item.weight }}
-                    </span>
-                  </button>
-                </div>
-
-                <p class="pressure-recommendation">{{ pressureRecommendation }}</p>
-
-                <div class="pressure-actions">
-                  <button class="ghost-btn" type="button" @click="resetPressureProbe">
-                    <RefreshCcw :size="16" />
-                    {{ t('common.reset') }}
-                  </button>
-                  <button class="secondary-btn" type="button" @click="recordPressureProbe(selectedProduct)">
-                    <ShieldCheck :size="16" />
-                    {{ t('pressure.guardianCta') }}
-                  </button>
+                <div class="pressure-signal-strip">
+                  <span v-if="!activePressureCues.length" class="pressure-signal-empty">{{ t('pressure.noCue') }}</span>
+                  <span v-for="item in activePressureCues" v-else :key="item.key" class="pressure-signal-pill">
+                    {{ item.label }} · {{ item.count }}
+                  </span>
                 </div>
               </div>
 
@@ -1285,6 +1241,163 @@
       </aside>
     </div>
 
+    <div v-if="pressureOpen && !isAdminUser" class="overlay" @click.self="closePressureProbe">
+      <aside class="drawer ai-drawer pressure-drawer">
+        <div class="drawer-head ai-head">
+          <div class="ai-title-block">
+            <span class="ai-avatar guardian">
+              <ShieldCheck :size="18" />
+            </span>
+            <div>
+              <strong>{{ t('pressure.modalTitle') }}</strong>
+              <span>
+                {{ t('pressure.modalSubtitle', {
+                  page: pressurePage + 1,
+                  total: pressurePageCount,
+                }) }}
+              </span>
+            </div>
+          </div>
+          <button class="icon-close" type="button" @click="closePressureProbe">
+            <X :size="18" />
+          </button>
+        </div>
+
+        <div class="ai-context-card pressure-context-card">
+          <div v-if="selectedProduct" class="ai-context-product">
+            <img
+              v-if="productImage(selectedProduct)"
+              :src="productImage(selectedProduct)"
+              :alt="selectedProduct.name"
+            />
+            <div v-else class="ai-context-fallback">
+              <Package2 :size="18" />
+            </div>
+            <div>
+              <span>{{ t('pressure.sceneTitle') }}</span>
+              <strong>
+                {{ t('pressure.sceneBody', {
+                  name: selectedProduct.name,
+                  price: formatMoney(selectedProduct.price),
+                }) }}
+              </strong>
+            </div>
+          </div>
+          <span class="pressure-level" :class="`level-${pressureLevel}`">
+            {{ pressureLevelLabel }}
+          </span>
+        </div>
+
+        <div class="pressure-chat-status">
+          <div class="pressure-meter">
+            <div>
+              <strong>{{ pressureScore }}</strong>
+              <span>{{ t('pressure.score') }}</span>
+            </div>
+            <div class="pressure-track">
+              <i :style="{ width: `${pressureScore}%` }"></i>
+            </div>
+          </div>
+          <div class="pressure-progress">
+            <i :style="{ width: `${pressureProgress}%` }"></i>
+          </div>
+          <div class="pressure-signal-strip">
+            <span v-if="!activePressureCues.length" class="pressure-signal-empty">{{ t('pressure.noCue') }}</span>
+            <span v-for="item in activePressureCues" v-else :key="item.key" class="pressure-signal-pill">
+              {{ item.label }} · {{ item.count }}
+            </span>
+          </div>
+        </div>
+
+        <div class="drawer-body ai-body pressure-chat-body" aria-live="polite">
+          <div class="chat-list">
+            <div class="chat-row assistant">
+              <span class="chat-avatar">
+                <Bot :size="16" />
+              </span>
+              <div class="chat-message">
+                <span class="chat-label">{{ t('pressure.assistantName') }}</span>
+                <div class="chat-bubble">
+                  {{ t('pressure.chatIntro', {
+                    start: pressurePage * pressurePageSize + 1,
+                    end: Math.min((pressurePage + 1) * pressurePageSize, pressureQuestionCount),
+                    total: pressureQuestionCount,
+                  }) }}
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-for="item in pressureVisibleQuestions"
+              :key="item.key"
+              class="chat-row assistant pressure-question-row"
+            >
+              <span class="chat-avatar">
+                <component :is="item.icon" :size="16" />
+              </span>
+              <div class="chat-message pressure-question-message">
+                <span class="chat-label">{{ item.label }} · +{{ item.weight }}</span>
+                <div class="chat-bubble pressure-question-bubble">
+                  <strong>{{ item.scene }}</strong>
+                  <span>{{ item.body }}</span>
+                  <div class="pressure-answer-row">
+                    <button
+                      class="pressure-answer-btn"
+                      :class="{ active: pressureAnswers[item.key] === true }"
+                      type="button"
+                      @click="setPressureAnswer(item.key, true)"
+                    >
+                      {{ t('pressure.answerYes') }}
+                    </button>
+                    <button
+                      class="pressure-answer-btn"
+                      :class="{ active: pressureAnswers[item.key] === false }"
+                      type="button"
+                      @click="setPressureAnswer(item.key, false)"
+                    >
+                      {{ t('pressure.answerNo') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-form pressure-form">
+          <p class="pressure-recommendation">{{ pressureRecommendation }}</p>
+          <div class="pressure-actions">
+            <button class="ghost-btn" type="button" @click="resetPressureProbe">
+              <RefreshCcw :size="16" />
+              {{ t('common.reset') }}
+            </button>
+            <button
+              class="secondary-btn"
+              type="button"
+              :disabled="pressurePage === 0"
+              @click="previousPressurePage"
+            >
+              <ArrowLeft :size="16" />
+              {{ t('pressure.previous') }}
+            </button>
+            <button
+              v-if="pressurePage < pressurePageCount - 1"
+              class="primary-btn"
+              type="button"
+              @click="nextPressurePage"
+            >
+              {{ t('pressure.next') }}
+              <ArrowRight :size="16" />
+            </button>
+            <button v-else class="primary-btn" type="button" @click="recordPressureProbe(selectedProduct)">
+              <ShieldCheck :size="16" />
+              {{ t('pressure.guardianCta') }}
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
     <div v-if="authOpen" class="overlay" @click.self="closeAuth">
       <aside class="drawer auth-drawer">
         <div class="drawer-head">
@@ -1517,11 +1630,22 @@ const checkoutReflection = reactive({
   persuasion_reframe: false,
   delay: false,
 });
-const pressureProbe = reactive({
-  urgency: false,
-  scarcity: false,
-  social_proof: false,
-  anchor_discount: false,
+const pressureOpen = ref(false);
+const pressurePage = ref(0);
+const pressurePageSize = 3;
+const pressureAnswers = reactive({
+  urgency_countdown: null,
+  scarcity_stock: null,
+  social_barrage: null,
+  anchor_price: null,
+  urgency_host: null,
+  scarcity_gift: null,
+  social_rank: null,
+  anchor_bundle: null,
+  urgency_payment: null,
+  scarcity_access: null,
+  social_compare: null,
+  anchor_installment: null,
 });
 
 const toasts = ref([]);
@@ -1769,45 +1893,150 @@ const checkoutChecklist = computed(() =>
     label: item.label,
   })),
 );
-const pressureCueCards = computed(() => [
+const pressureQuestions = computed(() => [
   {
-    key: 'urgency',
+    key: 'urgency_countdown',
+    cue: 'urgency',
     icon: Clock3,
-    weight: 28,
+    weight: 12,
     label: t('pressure.urgency'),
     scene: t('pressure.urgencyScene'),
     body: t('pressure.urgencyBody'),
   },
   {
-    key: 'scarcity',
+    key: 'scarcity_stock',
+    cue: 'scarcity',
     icon: Package2,
-    weight: 24,
+    weight: 11,
     label: t('pressure.scarcity'),
-    scene: t('pressure.scarcityScene'),
-    body: t('pressure.scarcityBody'),
+    scene: t('pressure.scarcityStockScene'),
+    body: t('pressure.scarcityStockBody'),
   },
   {
-    key: 'social_proof',
+    key: 'social_barrage',
+    cue: 'social_proof',
     icon: UserRound,
-    weight: 22,
+    weight: 10,
     label: t('pressure.socialProof'),
     scene: t('pressure.socialProofScene'),
     body: t('pressure.socialProofBody'),
   },
   {
-    key: 'anchor_discount',
+    key: 'anchor_price',
+    cue: 'anchor_discount',
     icon: Sparkles,
-    weight: 26,
+    weight: 12,
     label: t('pressure.anchorDiscount'),
     scene: t('pressure.anchorDiscountScene'),
     body: t('pressure.anchorDiscountBody'),
   },
+  {
+    key: 'urgency_host',
+    cue: 'urgency',
+    icon: Clock3,
+    weight: 11,
+    label: t('pressure.urgency'),
+    scene: t('pressure.urgencyHostScene'),
+    body: t('pressure.urgencyHostBody'),
+  },
+  {
+    key: 'scarcity_gift',
+    cue: 'scarcity',
+    icon: Package2,
+    weight: 10,
+    label: t('pressure.scarcity'),
+    scene: t('pressure.scarcityGiftScene'),
+    body: t('pressure.scarcityGiftBody'),
+  },
+  {
+    key: 'social_rank',
+    cue: 'social_proof',
+    icon: UserRound,
+    weight: 10,
+    label: t('pressure.socialProof'),
+    scene: t('pressure.socialRankScene'),
+    body: t('pressure.socialRankBody'),
+  },
+  {
+    key: 'anchor_bundle',
+    cue: 'anchor_discount',
+    icon: Sparkles,
+    weight: 10,
+    label: t('pressure.anchorDiscount'),
+    scene: t('pressure.anchorBundleScene'),
+    body: t('pressure.anchorBundleBody'),
+  },
+  {
+    key: 'urgency_payment',
+    cue: 'urgency',
+    icon: Clock3,
+    weight: 9,
+    label: t('pressure.urgency'),
+    scene: t('pressure.urgencyPaymentScene'),
+    body: t('pressure.urgencyPaymentBody'),
+  },
+  {
+    key: 'scarcity_access',
+    cue: 'scarcity',
+    icon: Package2,
+    weight: 9,
+    label: t('pressure.scarcity'),
+    scene: t('pressure.scarcityAccessScene'),
+    body: t('pressure.scarcityAccessBody'),
+  },
+  {
+    key: 'social_compare',
+    cue: 'social_proof',
+    icon: UserRound,
+    weight: 8,
+    label: t('pressure.socialProof'),
+    scene: t('pressure.socialCompareScene'),
+    body: t('pressure.socialCompareBody'),
+  },
+  {
+    key: 'anchor_installment',
+    cue: 'anchor_discount',
+    icon: Sparkles,
+    weight: 8,
+    label: t('pressure.anchorDiscount'),
+    scene: t('pressure.anchorInstallmentScene'),
+    body: t('pressure.anchorInstallmentBody'),
+  },
 ]);
-const activePressureCues = computed(() =>
-  pressureCueCards.value.filter((item) => pressureProbe[item.key]),
+const pressureQuestionCount = computed(() => pressureQuestions.value.length);
+const pressurePageCount = computed(() => Math.ceil(pressureQuestionCount.value / pressurePageSize));
+const pressureVisibleQuestions = computed(() => {
+  const start = pressurePage.value * pressurePageSize;
+  return pressureQuestions.value.slice(start, start + pressurePageSize);
+});
+const pressureAnsweredCount = computed(() =>
+  pressureQuestions.value.filter((item) => pressureAnswers[item.key] !== null).length,
 );
+const pressureProgress = computed(() => {
+  if (!pressureQuestionCount.value) return 0;
+  return Math.round((pressureAnsweredCount.value / pressureQuestionCount.value) * 100);
+});
+const activePressureQuestions = computed(() =>
+  pressureQuestions.value.filter((item) => pressureAnswers[item.key] === true),
+);
+const activePressureCues = computed(() => {
+  const cueMap = new Map();
+  activePressureQuestions.value.forEach((item) => {
+    const current = cueMap.get(item.cue) || {
+      key: item.cue,
+      icon: item.icon,
+      label: item.label,
+      weight: 0,
+      count: 0,
+    };
+    current.weight += item.weight;
+    current.count += 1;
+    cueMap.set(item.cue, current);
+  });
+  return Array.from(cueMap.values());
+});
 const pressureScore = computed(() => {
-  const cueScore = activePressureCues.value.reduce((sum, item) => sum + item.weight, 0);
+  const cueScore = activePressureQuestions.value.reduce((sum, item) => sum + item.weight, 0);
   const product = selectedProduct.value;
   const discountGap =
     Number(product?.original_price || 0) > Number(product?.price || 0) * 1.15 ? 8 : 0;
@@ -2278,14 +2507,32 @@ function pressureCueName(value) {
   return label === `pressure.cue.${value || 'unknown'}` ? value || t('common.pending') : label;
 }
 
-function togglePressureCue(key) {
-  pressureProbe[key] = !pressureProbe[key];
+function openPressureProbe() {
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  pressureOpen.value = true;
+}
+
+function closePressureProbe() {
+  pressureOpen.value = false;
+}
+
+function setPressureAnswer(key, value) {
+  pressureAnswers[key] = value;
+}
+
+function nextPressurePage() {
+  pressurePage.value = Math.min(pressurePage.value + 1, pressurePageCount.value - 1);
+}
+
+function previousPressurePage() {
+  pressurePage.value = Math.max(pressurePage.value - 1, 0);
 }
 
 function resetPressureProbe() {
-  Object.keys(pressureProbe).forEach((key) => {
-    pressureProbe[key] = false;
+  Object.keys(pressureAnswers).forEach((key) => {
+    pressureAnswers[key] = null;
   });
+  pressurePage.value = 0;
 }
 
 function recordPressureProbe(product = selectedProduct.value) {
@@ -2293,6 +2540,15 @@ function recordPressureProbe(product = selectedProduct.value) {
   const productId = product?.id || selectedProduct.value?.id || null;
   const cues = activePressureCues.value.map((item) => item.key);
   const cueLabels = activePressureCues.value.map((item) => item.label);
+  const questions = pressureQuestions.value.map((item) => ({
+    key: item.key,
+    cue: item.cue,
+    label: item.label,
+    scene: item.scene,
+    answer: pressureAnswers[item.key],
+    weight: item.weight,
+  }));
+  const selectedQuestions = activePressureQuestions.value.map((item) => item.scene);
 
   void trackBehavior('pressure_probe', {
     productId,
@@ -2300,6 +2556,9 @@ function recordPressureProbe(product = selectedProduct.value) {
     score: pressureScore.value,
     cues,
     cueLabels,
+    questions,
+    selectedQuestions,
+    answeredCount: pressureAnsweredCount.value,
     source: page.value,
     cartValue: cartTotal.value,
     productPrice: product?.price || null,
@@ -2314,6 +2573,7 @@ function recordPressureProbe(product = selectedProduct.value) {
     cues: cueLabels.length ? cueLabels.join(', ') : t('pressure.noCue'),
   });
   aiOpen.value = true;
+  pressureOpen.value = false;
   loadAiHistory('guardian');
   toast(t('toast.pressureProbeSaved'));
   void nextTick(() => aiInputEl.value?.focus());
