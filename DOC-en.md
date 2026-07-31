@@ -9,11 +9,11 @@ The research direction of this project is inspired by the ACM CHI 2026 paper "Bu
 - how promotional AI affects users' purchase intentions;
 - how guardian AI can intervene for rational consumption;
 - how live-commerce pressure cues such as time limits, scarcity, social proof, and discount anchoring influence decisions;
-- what behavioral traces users leave during browsing, carting, AI consultation, intervention, and decision submission.
+- what behavioral traces users leave during browsing, carting, AI consultation, intervention, calm mini games, and decision submission.
 
 The codebase has two main parts:
 
-- `view/`: a Vue 3 + Vite frontend, including sample browsing, AI chat, pressure probes, wish list, decision submission, and the research dashboard.
+- `view/`: a Vue 3 + Vite frontend, including sample browsing, AI chat, pressure probes, calm mini games, wish list, decision submission, and the research dashboard.
 - `worker/`: a Cloudflare Workers backend API, responsible for authentication, product samples, wish-list items, simulated decision records, AI calls, behavior tracking, and admin statistics.
 
 ## 2. Research Background and Motivation
@@ -27,6 +27,7 @@ ShopGuard turns this research direction into a runnable experimental environment
 - simulate promotional AI and guardian AI as two contrast conditions on the same platform;
 - record the full behavioral chain from sample exposure to decision submission;
 - turn BuyMate-style rational consumption interventions into clickable, recordable, and analyzable interaction events;
+- turn short puzzle games into non-AI calm-down tasks and observe whether attention switching helps delay impulse decisions;
 - extend the measurement of "situational pressure" and observe the relationship between live-commerce pressure cues and AI interventions.
 
 ## 3. Research Goals
@@ -40,7 +41,7 @@ The main goals of this project include:
    The system provides "promotional AI" and "guardian AI". Promotional AI simulates persuasive sales language in live commerce, while guardian AI provides rational consumption interventions.
 
 3. Convert BuyMate intervention strategies into events  
-   The frontend provides four intervention entry points: need reflection, peer comparison, persuasion reframing, and cooling-off delay. Every intervention trigger is recorded in `user_behaviors` for later analysis.
+   The frontend provides four intervention entry points: need reflection, peer comparison, persuasion reframing, and cooling-off delay, plus Dino Run, Klotski, and 15 Puzzle as calm mini games. Every intervention trigger or completed game is recorded in `user_behaviors` for later analysis.
 
 4. Record situational pressure profiles  
    The system designs pressure cues such as time urgency, inventory scarcity, social proof, and anchored discounts as dedicated probe questions. After completion, participants receive a pressure score, pressure level, and triggered cues, which are written into the behavior log.
@@ -57,6 +58,7 @@ This project can support the following research questions:
 - RQ3: Among need reflection, peer comparison, persuasion reframing, and cooling-off delay, which interventions are users more likely to use voluntarily?
 - RQ4: Are browsing sessions with higher pressure scores associated with longer dwell time, higher carting rates, or more AI conversations?
 - RQ5: Can translating sales language into neutral facts help users delay or recalibrate purchase decisions?
+- RQ6: Can short puzzle games serve as non-AI interventions that help participants pause from promotional stimuli and reduce immediate carting intent?
 
 ## 5. System Roles
 
@@ -73,6 +75,7 @@ Regular participants can:
 - chat with promotional AI or guardian AI;
 - start BuyMate interventions;
 - complete situational pressure probes;
+- complete calm mini games;
 - add items to or remove items from the wish list;
 - complete reflection checks before submission;
 - submit simulated decision records;
@@ -210,6 +213,9 @@ Related frontend logic:
 - `interventionCards`
 - `startIntervention`
 - `trackCheckoutReflection`
+- `gameCards`
+- `openGame`
+- `recordGameCompletion`
 
 The system includes four intervention types:
 
@@ -219,6 +225,7 @@ The system includes four intervention types:
 | Peer comparison | `comparison` | Recompare price, durability, after-sales support, and non-promotional price |
 | Persuasion reframing | `persuasion_reframe` | Translate promotional language such as time limits, bestsellers, and scarcity into neutral facts |
 | Cooling-off delay | `delay` | Turn an immediate decision into a later review |
+| Calm mini game | `cooling_game` | Use Dino Run, Klotski, and 15 Puzzle as short attention-switching tasks |
 
 Each time a user clicks an intervention card, the system records:
 
@@ -229,6 +236,8 @@ Each time a user clicks an intervention card, the system records:
 - `cartValue`
 
 Pre-checkout reflection is also recorded as `intervention_check`, with additional metadata such as whether the checkbox was selected and the wish-list item count.
+
+Calm mini games also reuse `intervention_check`, with `strategy = cooling_game`. The metadata records `game`, `action`, `score`, or `moves`, so researchers can observe opens, restarts, endings, and completions without adding a new database table.
 
 ### 6.6 Situational Pressure Probe Module
 
@@ -477,7 +486,7 @@ Behavior records store extension fields in `metadata_json`, making it easier to 
 | `place_order` | User submits a simulated decision record | Observe final decision |
 | `chat_ai` | User sends a message to AI | Observe AI usage |
 | `search` | User searches samples | Observe active exploration |
-| `intervention_check` | User clicks an intervention or completes pre-checkout reflection | Observe rational intervention reach |
+| `intervention_check` | User clicks an intervention, completes a calm mini game, or completes pre-checkout reflection | Observe rational intervention reach |
 | `pressure_probe` | User completes a pressure probe | Observe situational pressure cues |
 
 ### 8.2 Session Definition
@@ -679,7 +688,7 @@ A standard experiment or demo flow can be executed as follows:
    The participant can consult promotional AI and guardian AI separately. The system records AI type, role, content, sample context, and time.
 
 5. Intervention trigger  
-   The participant clicks need reflection, peer comparison, persuasion reframing, or cooling-off delay. The system opens guardian AI and records the intervention event.
+   The participant clicks need reflection, peer comparison, persuasion reframing, or cooling-off delay. The system opens guardian AI and records the intervention event. The participant can also enter calm mini games and complete Dino Run, Klotski, or 15 Puzzle; the system records game exposure and completion.
 
 6. Pressure probe  
    The participant completes the situational pressure probe. The system records the pressure score, level, and cues, then generates a guardian AI prompt.
@@ -745,6 +754,7 @@ Potential extensions include:
 - export data as CSV or JSON;
 - session path visualization;
 - manual annotation of AI response quality;
+- more non-AI calm-down tasks, such as memory matching, Sudoku, or short budget-sorting tasks;
 - experiments on intervention timing, such as detail-page entry, dwell time, carting, and pre-submission;
 - finer-grained dwell-time and page-scroll recording;
 - R2 product image management dashboard;

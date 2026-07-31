@@ -48,6 +48,10 @@
           <Clock3 :size="16" />
           {{ t('common.records') }}
         </button>
+        <button v-if="!isAdminUser" class="nav-chip" type="button" @click="openGame(activeGame, 'topbar')">
+          <Layers3 :size="16" />
+          {{ t('common.games') }}
+        </button>
         <button class="nav-chip" type="button" @click="go('admin')">
           <Settings2 :size="16" />
           {{ t('common.research') }}
@@ -417,6 +421,30 @@
                   <span v-for="item in activePressureCues" v-else :key="item.key" class="pressure-signal-pill">
                     {{ item.label }} · {{ item.count }}
                   </span>
+                </div>
+              </div>
+
+              <div v-if="!isAdminUser" class="game-panel">
+                <div class="panel-head compact-head">
+                  <div>
+                    <h2>{{ t('games.panelTitle') }}</h2>
+                    <p>{{ t('games.panelSubtitle') }}</p>
+                  </div>
+                </div>
+                <div class="game-launch-grid">
+                  <button
+                    v-for="game in gameCards"
+                    :key="game.key"
+                    class="game-launch-card"
+                    type="button"
+                    @click="openGame(game.key, 'product-detail')"
+                  >
+                    <span class="intervention-icon">
+                      <component :is="game.icon" :size="16" />
+                    </span>
+                    <strong>{{ game.label }}</strong>
+                    <span>{{ game.body }}</span>
+                  </button>
                 </div>
               </div>
 
@@ -1007,6 +1035,188 @@
               </div>
             </aside>
           </div>
+        </div>
+      </section>
+
+      <section v-else-if="page === 'games'" class="page-band">
+        <div class="panel page-header games-header">
+          <div>
+            <h1>{{ t('games.title') }}</h1>
+            <p>{{ t('games.subtitle') }}</p>
+          </div>
+          <button class="ghost-btn" type="button" @click="go('products')">
+            <ArrowLeft :size="16" />
+            {{ t('common.backProducts') }}
+          </button>
+        </div>
+
+        <div class="games-layout">
+          <aside class="panel games-menu">
+            <div class="panel-head">
+              <div>
+                <h2>{{ t('games.menuTitle') }}</h2>
+                <p>{{ t('games.menuSubtitle') }}</p>
+              </div>
+            </div>
+            <div class="game-choice-list">
+              <button
+                v-for="game in gameCards"
+                :key="game.key"
+                class="game-choice"
+                :class="{ active: activeGame === game.key }"
+                type="button"
+                @click="selectGame(game.key)"
+              >
+                <span class="intervention-icon">
+                  <component :is="game.icon" :size="16" />
+                </span>
+                <span>
+                  <strong>{{ game.label }}</strong>
+                  <small>{{ game.body }}</small>
+                </span>
+                <strong class="game-choice-status">{{ gameStatus(game.key) }}</strong>
+              </button>
+            </div>
+          </aside>
+
+          <section class="panel game-stage-panel">
+            <template v-if="activeGame === 'dino'">
+              <div class="panel-head">
+                <div>
+                  <h2>{{ t('games.dinoTitle') }}</h2>
+                  <p>{{ t('games.dinoHint') }}</p>
+                </div>
+                <div class="game-stat-row">
+                  <span>{{ t('games.score') }} {{ dinoScore }}</span>
+                  <span>{{ t('games.best') }} {{ dino.best }}</span>
+                </div>
+              </div>
+
+              <button
+                class="dino-stage"
+                ref="dinoStageEl"
+                type="button"
+                :aria-label="t('games.jump')"
+                @click="jumpDino"
+              >
+                <span class="dino-skyline"></span>
+                <span
+                  class="dino-runner"
+                  :class="{ jumping: dino.y > 0 }"
+                  :style="{ bottom: `${28 + dino.y}px` }"
+                >
+                  SG
+                </span>
+                <span class="dino-obstacle" :style="{ left: `${dino.obstacleX}%` }"></span>
+                <span class="dino-ground"></span>
+                <span v-if="!dino.running && !dino.gameOver" class="game-overlay-label">
+                  {{ t('games.dinoReady') }}
+                </span>
+                <span v-if="dino.gameOver" class="game-overlay-label">
+                  {{ t('games.dinoGameOver') }}
+                </span>
+              </button>
+
+              <div class="game-control-row">
+                <button class="primary-btn" type="button" @click="startDino">
+                  <Clock3 :size="16" />
+                  {{ dino.running ? t('games.restart') : t('games.play') }}
+                </button>
+                <button class="secondary-btn" type="button" @click="jumpDino">
+                  <ArrowRight :size="16" />
+                  {{ t('games.jump') }}
+                </button>
+                <button class="ghost-btn" type="button" @click="stopDino">
+                  <RefreshCcw :size="16" />
+                  {{ t('games.pause') }}
+                </button>
+              </div>
+            </template>
+
+            <template v-else-if="activeGame === 'klotski'">
+              <div class="panel-head">
+                <div>
+                  <h2>{{ t('games.klotskiTitle') }}</h2>
+                  <p>{{ t('games.klotskiHint') }}</p>
+                </div>
+                <div class="game-stat-row">
+                  <span>{{ t('games.moves') }} {{ klotskiMoves }}</span>
+                  <span>{{ klotskiSolved ? t('games.completed') : t('games.klotskiExit') }}</span>
+                </div>
+              </div>
+
+              <div class="klotski-wrap">
+                <div class="klotski-board">
+                  <button
+                    v-for="piece in klotskiPieces"
+                    :key="piece.id"
+                    class="klotski-piece"
+                    :class="[`size-${piece.w}x${piece.h}`, { active: selectedKlotskiPiece === piece.id }]"
+                    type="button"
+                    :style="klotskiPieceStyle(piece)"
+                    @click="selectKlotskiPiece(piece.id)"
+                  >
+                    {{ t(piece.labelKey) }}
+                  </button>
+                  <span class="klotski-exit">{{ t('games.exit') }}</span>
+                </div>
+
+                <div class="klotski-controls" :aria-label="t('games.klotskiControls')">
+                  <button class="ghost-btn" type="button" @click="moveKlotski('up')">
+                    <ArrowRight class="arrow-up" :size="16" />
+                  </button>
+                  <button class="ghost-btn" type="button" @click="moveKlotski('left')">
+                    <ArrowLeft :size="16" />
+                  </button>
+                  <button class="ghost-btn" type="button" @click="moveKlotski('right')">
+                    <ArrowRight :size="16" />
+                  </button>
+                  <button class="ghost-btn" type="button" @click="moveKlotski('down')">
+                    <ArrowRight class="arrow-down" :size="16" />
+                  </button>
+                  <button class="secondary-btn reset-puzzle-btn" type="button" @click="resetKlotski">
+                    <RefreshCcw :size="16" />
+                    {{ t('games.restart') }}
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="panel-head">
+                <div>
+                  <h2>{{ t('games.sliderTitle') }}</h2>
+                  <p>{{ t('games.sliderHint') }}</p>
+                </div>
+                <div class="game-stat-row">
+                  <span>{{ t('games.moves') }} {{ sliderMoves }}</span>
+                  <span>{{ sliderSolved ? t('games.completed') : t('games.steps') }}</span>
+                </div>
+              </div>
+
+              <div class="slider-game-wrap">
+                <div class="slider-board">
+                  <button
+                    v-for="(tile, index) in sliderTiles"
+                    :key="`${tile}-${index}`"
+                    class="slider-tile"
+                    :class="{ empty: tile === 0 }"
+                    type="button"
+                    :disabled="tile === 0"
+                    @click="moveSliderTile(index)"
+                  >
+                    {{ tile || '' }}
+                  </button>
+                </div>
+                <div class="game-control-row">
+                  <button class="primary-btn" type="button" @click="shuffleSlider">
+                    <RefreshCcw :size="16" />
+                    {{ t('games.shuffle') }}
+                  </button>
+                </div>
+              </div>
+            </template>
+          </section>
         </div>
       </section>
 
@@ -1608,6 +1818,17 @@ const PROMOTIONAL_DWELL_MS = 20000;
 const PROMOTIONAL_UNANSWERED_LIMIT = 2;
 const PRESSURE_PAGE_SIZE = 3;
 const PRESSURE_GROUPS_PER_RUN = 4;
+const DINO_GRAVITY = 0.00175;
+const DINO_JUMP_VELOCITY = 0.72;
+const DINO_BASE_SPEED = 0.035;
+const DINO_RUNNER_LEFT_RATIO = 0.11;
+const DINO_RUNNER_WIDTH = 46;
+const DINO_OBSTACLE_WIDTH = 22;
+const DINO_COLLISION_PADDING = 4;
+const DINO_CLEARANCE = 34;
+const KLOTSKI_BOARD_WIDTH = 4;
+const KLOTSKI_BOARD_HEIGHT = 5;
+const SLIDER_SIZE = 4;
 const themeOptions = new Set(['light', 'dark']);
 const markdown = new MarkdownIt({
   html: false,
@@ -1827,6 +2048,30 @@ const pressureQuestionSpecs = ref(createPressureQuestionSet());
 const pressureAnswers = reactive({});
 initializePressureAnswers(pressureQuestionSpecs.value);
 
+const activeGame = ref('dino');
+const completedGames = reactive({
+  dino: false,
+  klotski: false,
+  slider: false,
+});
+const dino = reactive({
+  running: false,
+  gameOver: false,
+  score: 0,
+  best: 0,
+  y: 0,
+  velocity: 0,
+  obstacleX: 88,
+  frameId: 0,
+  lastTs: 0,
+});
+const dinoStageEl = ref(null);
+const klotskiPieces = ref(createKlotskiPieces());
+const selectedKlotskiPiece = ref('caocao');
+const klotskiMoves = ref(0);
+const sliderTiles = ref(createShuffledSlider());
+const sliderMoves = ref(0);
+
 const toasts = ref([]);
 
 const sortOptions = computed(() => [
@@ -1851,7 +2096,10 @@ watch(
     if (next !== 'products') {
       clearPromotionalDwellTimer();
     }
-    if (isAdminUser.value && (next === 'orders' || next === 'checkout')) {
+    if (next !== 'games') {
+      stopDino();
+    }
+    if (isAdminUser.value && (next === 'orders' || next === 'checkout' || next === 'games')) {
       go('admin');
       return;
     }
@@ -2068,6 +2316,34 @@ const interventionCards = computed(() => {
     },
   ];
 });
+const gameCards = computed(() => [
+  {
+    key: 'dino',
+    icon: Clock3,
+    label: t('games.dinoTitle'),
+    body: t('games.dinoBody'),
+  },
+  {
+    key: 'klotski',
+    icon: Layers3,
+    label: t('games.klotskiTitle'),
+    body: t('games.klotskiBody'),
+  },
+  {
+    key: 'slider',
+    icon: Package2,
+    label: t('games.sliderTitle'),
+    body: t('games.sliderBody'),
+  },
+]);
+const dinoScore = computed(() => Math.floor(dino.score));
+const klotskiSolved = computed(() => {
+  const hero = klotskiPieces.value.find((piece) => piece.id === 'caocao');
+  return hero?.x === 1 && hero?.y === 3;
+});
+const sliderSolved = computed(() =>
+  sliderTiles.value.every((tile, index) => tile === (index === sliderTiles.value.length - 1 ? 0 : index + 1)),
+);
 const buyMatePitchCategories = computed(() => {
   const productName = selectedProduct.value?.name || t('common.product');
   return [
@@ -2241,6 +2517,7 @@ watch(
 onMounted(async () => {
   window.addEventListener('hashchange', syncRoute);
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  document.addEventListener('keydown', handleGameKeydown);
   await bootstrap();
   if (page.value === 'products' && !selectedProductId.value && products.value.length) {
     selectedProductId.value = products.value[0].id;
@@ -2250,7 +2527,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('hashchange', syncRoute);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
+  document.removeEventListener('keydown', handleGameKeydown);
   clearPromotionalDwellTimer();
+  stopDino();
 });
 
 async function bootstrap() {
@@ -2606,6 +2885,305 @@ function trackCheckoutReflection(item) {
       cartCount: cartCount.value,
     },
   });
+}
+
+function openGame(gameKey = activeGame.value, source = page.value) {
+  if (isAdminUser.value) {
+    toast(t('toast.adminStandardBlocked'), 'error');
+    go('admin');
+    return;
+  }
+  selectGame(gameKey, source);
+  go('games');
+}
+
+function selectGame(gameKey, source = 'games-menu') {
+  if (!['dino', 'klotski', 'slider'].includes(gameKey)) return;
+  if (activeGame.value !== gameKey) {
+    stopDino();
+  }
+  activeGame.value = gameKey;
+  recordGameEvent(gameKey, 'open', { source });
+}
+
+function gameStatus(gameKey) {
+  if (completedGames[gameKey]) return t('games.completed');
+  if (gameKey === 'dino' && dino.best) return t('games.bestShort', { score: dino.best });
+  if (gameKey === 'klotski' && klotskiMoves.value) return t('games.movesShort', { count: klotskiMoves.value });
+  if (gameKey === 'slider' && sliderMoves.value) return t('games.movesShort', { count: sliderMoves.value });
+  return t('games.ready');
+}
+
+function recordGameEvent(gameKey, action, metadata = {}) {
+  void trackBehavior('intervention_check', {
+    productId: selectedProduct.value?.id || null,
+    strategy: 'cooling_game',
+    game: gameKey,
+    action,
+    source: page.value,
+    cartValue: cartTotal.value,
+    ...metadata,
+  });
+}
+
+function recordGameCompletion(gameKey, metadata = {}) {
+  if (completedGames[gameKey]) return;
+  completedGames[gameKey] = true;
+  recordGameEvent(gameKey, 'complete', metadata);
+  toast(t('toast.gameCompleted'));
+}
+
+function startDino() {
+  stopDino();
+  completedGames.dino = false;
+  dino.running = true;
+  dino.gameOver = false;
+  dino.score = 0;
+  dino.y = 0;
+  dino.velocity = 0;
+  dino.obstacleX = 88;
+  dino.lastTs = performance.now();
+  recordGameEvent('dino', 'start');
+  dino.frameId = window.requestAnimationFrame(runDinoFrame);
+}
+
+function stopDino() {
+  if (dino.frameId) {
+    window.cancelAnimationFrame(dino.frameId);
+  }
+  dino.frameId = 0;
+  dino.running = false;
+}
+
+function jumpDino() {
+  if (!dino.running) {
+    startDino();
+    return;
+  }
+  if (dino.y > 0) return;
+  dino.velocity = DINO_JUMP_VELOCITY;
+}
+
+function runDinoFrame(timestamp) {
+  if (!dino.running) return;
+  const delta = Math.min(40, timestamp - (dino.lastTs || timestamp));
+  dino.lastTs = timestamp;
+  dino.score += delta / 80;
+  dino.best = Math.max(dino.best, Math.floor(dino.score));
+
+  dino.velocity -= DINO_GRAVITY * delta;
+  dino.y = Math.max(0, dino.y + dino.velocity * delta);
+  if (dino.y === 0 && dino.velocity < 0) {
+    dino.velocity = 0;
+  }
+
+  const speed = DINO_BASE_SPEED + Math.min(0.04, dino.score / 36000);
+  dino.obstacleX -= speed * delta;
+  if (dino.obstacleX < -7) {
+    dino.obstacleX = 100 + Math.random() * 24;
+  }
+
+  if (dino.score >= 100) {
+    recordGameCompletion('dino', { score: dinoScore.value });
+  }
+
+  if (isDinoCollision()) {
+    dino.running = false;
+    dino.gameOver = true;
+    dino.frameId = 0;
+    recordGameEvent('dino', 'end', { score: dinoScore.value });
+    return;
+  }
+
+  dino.frameId = window.requestAnimationFrame(runDinoFrame);
+}
+
+function isDinoCollision() {
+  const stageWidth = dinoStageEl.value?.clientWidth || 1000;
+  const runnerLeft = stageWidth * DINO_RUNNER_LEFT_RATIO;
+  const runnerRight = runnerLeft + DINO_RUNNER_WIDTH;
+  const obstacleLeft = (dino.obstacleX / 100) * stageWidth;
+  const obstacleRight = obstacleLeft + DINO_OBSTACLE_WIDTH;
+  const horizontalOverlap =
+    obstacleRight - DINO_COLLISION_PADDING > runnerLeft &&
+    obstacleLeft + DINO_COLLISION_PADDING < runnerRight;
+
+  return horizontalOverlap && dino.y < DINO_CLEARANCE;
+}
+
+function handleGameKeydown(event) {
+  if (page.value !== 'games') return;
+  if (activeGame.value === 'dino' && (event.code === 'Space' || event.code === 'ArrowUp')) {
+    event.preventDefault();
+    jumpDino();
+  }
+  if (activeGame.value === 'klotski') {
+    const keyMap = {
+      ArrowUp: 'up',
+      ArrowDown: 'down',
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+    };
+    const direction = keyMap[event.code];
+    if (direction) {
+      event.preventDefault();
+      moveKlotski(direction);
+    }
+  }
+}
+
+function createKlotskiPieces() {
+  return [
+    { id: 'zhangfei', labelKey: 'games.piece.zhangfei', x: 0, y: 0, w: 1, h: 2 },
+    { id: 'caocao', labelKey: 'games.piece.caocao', x: 1, y: 0, w: 2, h: 2 },
+    { id: 'guanyu', labelKey: 'games.piece.guanyu', x: 3, y: 0, w: 1, h: 2 },
+    { id: 'machao', labelKey: 'games.piece.machao', x: 0, y: 2, w: 1, h: 2 },
+    { id: 'zhaoyun', labelKey: 'games.piece.zhaoyun', x: 1, y: 2, w: 2, h: 1 },
+    { id: 'huangzhong', labelKey: 'games.piece.huangzhong', x: 3, y: 2, w: 1, h: 2 },
+    { id: 'soldier1', labelKey: 'games.piece.soldier', x: 1, y: 3, w: 1, h: 1 },
+    { id: 'soldier2', labelKey: 'games.piece.soldier', x: 2, y: 3, w: 1, h: 1 },
+    { id: 'soldier3', labelKey: 'games.piece.soldier', x: 0, y: 4, w: 1, h: 1 },
+    { id: 'soldier4', labelKey: 'games.piece.soldier', x: 3, y: 4, w: 1, h: 1 },
+  ];
+}
+
+function resetKlotski() {
+  stopDino();
+  klotskiPieces.value = createKlotskiPieces();
+  selectedKlotskiPiece.value = 'caocao';
+  klotskiMoves.value = 0;
+  completedGames.klotski = false;
+  recordGameEvent('klotski', 'restart');
+}
+
+function selectKlotskiPiece(pieceId) {
+  selectedKlotskiPiece.value = pieceId;
+}
+
+function moveKlotski(direction) {
+  const offset = {
+    up: [0, -1],
+    down: [0, 1],
+    left: [-1, 0],
+    right: [1, 0],
+  }[direction];
+  if (!offset || klotskiSolved.value) return;
+
+  const nextPieces = klotskiPieces.value.map((piece) => ({ ...piece }));
+  const piece = nextPieces.find((item) => item.id === selectedKlotskiPiece.value);
+  if (!piece) return;
+
+  piece.x += offset[0];
+  piece.y += offset[1];
+  if (!canPlaceKlotskiPiece(piece, nextPieces)) return;
+
+  klotskiPieces.value = nextPieces;
+  klotskiMoves.value += 1;
+  if (isKlotskiSolved(nextPieces)) {
+    recordGameCompletion('klotski', { moves: klotskiMoves.value });
+  }
+}
+
+function canPlaceKlotskiPiece(piece, pieces) {
+  if (piece.x < 0 || piece.y < 0 || piece.x + piece.w > KLOTSKI_BOARD_WIDTH || piece.y + piece.h > KLOTSKI_BOARD_HEIGHT) {
+    return false;
+  }
+
+  const occupied = new Set();
+  pieces
+    .filter((item) => item.id !== piece.id)
+    .forEach((item) => {
+      for (let x = item.x; x < item.x + item.w; x += 1) {
+        for (let y = item.y; y < item.y + item.h; y += 1) {
+          occupied.add(`${x},${y}`);
+        }
+      }
+    });
+
+  for (let x = piece.x; x < piece.x + piece.w; x += 1) {
+    for (let y = piece.y; y < piece.y + piece.h; y += 1) {
+      if (occupied.has(`${x},${y}`)) return false;
+    }
+  }
+  return true;
+}
+
+function isKlotskiSolved(pieces) {
+  const hero = pieces.find((piece) => piece.id === 'caocao');
+  return hero?.x === 1 && hero?.y === 3;
+}
+
+function klotskiPieceStyle(piece) {
+  return {
+    left: `${piece.x * 25}%`,
+    top: `${piece.y * 20}%`,
+    width: `${piece.w * 25}%`,
+    height: `${piece.h * 20}%`,
+  };
+}
+
+function createSolvedSlider() {
+  return Array.from({ length: SLIDER_SIZE * SLIDER_SIZE }, (_, index) =>
+    index === SLIDER_SIZE * SLIDER_SIZE - 1 ? 0 : index + 1,
+  );
+}
+
+function createShuffledSlider() {
+  const tiles = createSolvedSlider();
+  let emptyIndex = tiles.length - 1;
+  let previousEmptyIndex = -1;
+
+  for (let step = 0; step < 120; step += 1) {
+    const options = sliderNeighborIndexes(emptyIndex).filter((index) => index !== previousEmptyIndex);
+    const nextIndex = options[Math.floor(Math.random() * options.length)] ?? sliderNeighborIndexes(emptyIndex)[0];
+    [tiles[emptyIndex], tiles[nextIndex]] = [tiles[nextIndex], tiles[emptyIndex]];
+    previousEmptyIndex = emptyIndex;
+    emptyIndex = nextIndex;
+  }
+
+  if (isSliderSolved(tiles)) {
+    const [firstNeighbor] = sliderNeighborIndexes(emptyIndex);
+    [tiles[emptyIndex], tiles[firstNeighbor]] = [tiles[firstNeighbor], tiles[emptyIndex]];
+  }
+
+  return tiles;
+}
+
+function shuffleSlider() {
+  stopDino();
+  sliderTiles.value = createShuffledSlider();
+  sliderMoves.value = 0;
+  completedGames.slider = false;
+  recordGameEvent('slider', 'restart');
+}
+
+function moveSliderTile(index) {
+  const emptyIndex = sliderTiles.value.indexOf(0);
+  if (!sliderNeighborIndexes(emptyIndex).includes(index)) return;
+
+  const nextTiles = [...sliderTiles.value];
+  [nextTiles[emptyIndex], nextTiles[index]] = [nextTiles[index], nextTiles[emptyIndex]];
+  sliderTiles.value = nextTiles;
+  sliderMoves.value += 1;
+
+  if (isSliderSolved(nextTiles)) {
+    recordGameCompletion('slider', { moves: sliderMoves.value });
+  }
+}
+
+function sliderNeighborIndexes(index) {
+  const row = Math.floor(index / SLIDER_SIZE);
+  const col = index % SLIDER_SIZE;
+  return [
+    row > 0 ? index - SLIDER_SIZE : null,
+    row < SLIDER_SIZE - 1 ? index + SLIDER_SIZE : null,
+    col > 0 ? index - 1 : null,
+    col < SLIDER_SIZE - 1 ? index + 1 : null,
+  ].filter((value) => value !== null);
+}
+
+function isSliderSolved(tiles) {
+  return tiles.every((tile, index) => tile === (index === tiles.length - 1 ? 0 : index + 1));
 }
 
 function handleAiKeydown(event) {

@@ -13,6 +13,7 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - 记录列表与详情查看
 - 双 AI 助手：促销型 AI 和守护型 AI
 - BuyMate 风格干预：需求反思、同类商品比较、销售话术重构、冷静延迟
+- 冷静小游戏：小恐龙跑酷、华容道、15 数码，用短回合益智任务打断冲动下单节奏
 - 情境压力实验：标记限时、稀缺、社交证明和折扣锚定线索，生成压力画像
 - 研究后台：AI 配置、行为统计与决策记录管理
 - 用户行为追踪与研究数据记录
@@ -23,6 +24,7 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - Record list and detail view
 - Two AI assistants: Promotional AI and Guardian AI
 - BuyMate-style interventions: need reflection, comparable-product review, persuasion reframing, and delayed decision
+- Calm mini games: Dino Run, Klotski, and 15 Puzzle as short cognitive-switching tasks before purchase decisions
 - Situational pressure lab: mark urgency, scarcity, social proof, and discount anchoring cues to create pressure profiles
 - Research dashboard for AI settings, behavior stats, and decision record management
 - User behavior tracking and research data logging
@@ -33,6 +35,7 @@ ShopGuard is a consumer-decision research platform built on Cloudflare Workers a
 - `促销型 AI`：模拟直播电商中的销售式、劝服式对照条件。
 - `守护型 AI`：提供温和、实时的理性消费干预，不替用户做决定。
 - `BuyMate 干预`：把关键干预做成可点击事件并写入 `user_behaviors`。
+- `冷静小游戏`：把小恐龙跑酷、华容道、15 数码作为可触发、可记录的非 AI 冷静任务，研究注意力切换对冲动消费倾向的影响。
 - `情境压力实验`：把直播电商中的限时、稀缺、社交证明和价格锚定作为独立变量记录，用于研究情境压力与理性干预之间的关系。
 - `研究后台`：汇总行为、会话、AI 对话、提交记录和干预触达次数。
 - `压力摘要`：在不新增数据库表的情况下复用 `user_behaviors.metadata_json`，聚合压力画像数量、平均压力分、等级分布和高频线索。
