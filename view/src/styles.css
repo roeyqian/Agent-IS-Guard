@@ -2473,6 +2473,16 @@ img {
   min-width: 0;
 }
 
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clear-chat-btn:not(:disabled) {
+  color: var(--danger, #dc2626);
+}
+
 .ai-avatar,
 .ai-empty-icon,
 .chat-avatar {

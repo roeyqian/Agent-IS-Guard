@@ -208,6 +208,22 @@ export async function getHistory({ request, env, url }) {
   return json({ history: results.filter((item) => !isHiddenConversation(item)) });
 }
 
+export async function clearHistory({ request, env, url }) {
+  const { session } = await requireStandardUser(request, env);
+  const aiType = url.searchParams.get('aiType');
+
+  if (!['seller', 'guardian'].includes(aiType)) {
+    throw { status: 400, message: 'A valid AI type is required' };
+  }
+
+  const result = await env.db.prepare(`
+    DELETE FROM ai_conversations
+    WHERE user_id = ? AND ai_type = ?
+  `).bind(session.userId, aiType).run();
+
+  return json({ aiType, clearedCount: result.meta.changes || 0 });
+}
+
 function isHiddenConversation(item) {
   try {
     const metadata = JSON.parse(item.metadata_json || '{}');

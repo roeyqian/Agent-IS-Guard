@@ -147,6 +147,8 @@ export const AIAPI = {
     }),
   getHistory: (aiType = null) =>
     request(`/ai/history${aiType ? `?aiType=${aiType}` : ''}`),
+  clearHistory: (aiType) =>
+    request(`/ai/history?aiType=${encodeURIComponent(aiType)}`, { method: 'DELETE' }),
 };
 
 export const ResearchAPI = {

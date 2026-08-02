@@ -1394,9 +1394,21 @@
               <span>{{ activeAiDescription }}</span>
             </div>
           </div>
-          <button class="icon-close" type="button" @click="closeAi">
-            <X :size="18" />
-          </button>
+          <div class="drawer-actions">
+            <button
+              class="icon-close clear-chat-btn"
+              type="button"
+              :aria-label="t('ai.clearHistory')"
+              :title="t('ai.clearHistory')"
+              :disabled="!activeAiMessages.length || aiSending || aiClearing"
+              @click="clearAiHistory"
+            >
+              <Trash2 :size="17" />
+            </button>
+            <button class="icon-close" type="button" :aria-label="t('common.close')" @click="closeAi">
+              <X :size="18" />
+            </button>
+          </div>
         </div>
 
         <div class="ai-switcher" role="tablist" :aria-label="t('ai.title')">
@@ -1808,6 +1820,7 @@ import {
   ShoppingCart,
   Sparkles,
   Sun,
+  Trash2,
   Truck,
   UserRound,
   X,
@@ -1999,6 +2012,7 @@ const aiType = ref('seller');
 const aiProductId = ref('');
 const aiMessage = ref('');
 const aiSending = ref(false);
+const aiClearing = ref(false);
 const aiMessagesEl = ref(null);
 const aiInputEl = ref(null);
 const aiHistory = reactive({
@@ -3852,6 +3866,31 @@ async function sendAiMessage() {
     await loadAiHistory(type);
   } finally {
     aiSending.value = false;
+  }
+}
+
+async function clearAiHistory() {
+  if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  if (!activeAiMessages.value.length || aiSending.value || aiClearing.value) return;
+  if (!window.confirm(t('ai.clearHistoryConfirm', { name: activeAiTitle.value }))) return;
+
+  const type = aiType.value;
+  aiClearing.value = true;
+  try {
+    await AIAPI.clearHistory(type);
+    aiHistory[type] = [];
+    aiMessage.value = '';
+    toast(t('toast.chatHistoryCleared'));
+    await nextTick();
+    aiInputEl.value?.focus();
+  } catch (error) {
+    if (error.status === 401) {
+      openAuth('login');
+    } else {
+      toast(error.message || t('toast.chatHistoryClearFailed'), 'error');
+    }
+  } finally {
+    aiClearing.value = false;
   }
 }
 
