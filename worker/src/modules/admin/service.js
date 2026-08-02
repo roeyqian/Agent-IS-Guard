@@ -77,7 +77,7 @@ export async function getStats({ request, env }) {
   const { total_users } = await env.db.prepare("SELECT COUNT(*) as total_users FROM users WHERE role = 'user'").first();
   const { total_orders } = await env.db.prepare("SELECT COUNT(*) as total_orders FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user'").first();
   const { total_revenue } = await env.db.prepare("SELECT COALESCE(SUM(o.final_amount), 0) as total_revenue FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user' AND o.status != 'cancelled'").first();
-  const { total_conversations } = await env.db.prepare("SELECT COUNT(*) as total_conversations FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user'").first();
+  const { total_conversations } = await env.db.prepare("SELECT COUNT(DISTINCT ac.conversation_id) as total_conversations FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user'").first();
   const { total_products } = await env.db.prepare("SELECT COUNT(*) as total_products FROM products").first();
   const { total_behaviors } = await env.db.prepare("SELECT COUNT(*) as total_behaviors FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user'").first();
   const { view_product_count } = await env.db.prepare("SELECT COUNT(*) as view_product_count FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND ub.behavior_type = 'view_product'").first();

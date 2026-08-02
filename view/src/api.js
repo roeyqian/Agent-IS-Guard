@@ -131,24 +131,26 @@ export const OrderAPI = {
 };
 
 export const AIAPI = {
-  chat: (message, aiType, productId = null) =>
+  chat: (message, aiType, productId = null, conversationId, clientMessageId, options = {}) =>
     request('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, aiType, productId }),
+      body: JSON.stringify({ message, aiType, productId, conversationId, clientMessageId }),
+      signal: options.signal,
     }),
-  promotionalNudge: (productId, dwellMs) =>
+  promotionalNudge: (productId, dwellMs, conversationId) =>
     request('/ai/promotional-nudge', {
       method: 'POST',
       body: JSON.stringify({
         productId,
         dwellMs,
+        conversationId,
         source: 'long-product-dwell',
       }),
     }),
-  getHistory: (aiType = null) =>
-    request(`/ai/history${aiType ? `?aiType=${aiType}` : ''}`),
-  clearHistory: (aiType) =>
-    request(`/ai/history?aiType=${encodeURIComponent(aiType)}`, { method: 'DELETE' }),
+  getHistory: (aiType, conversationId) =>
+    request(`/ai/history?aiType=${encodeURIComponent(aiType)}&conversationId=${encodeURIComponent(conversationId)}`),
+  clearHistory: (aiType, conversationId) =>
+    request(`/ai/history?aiType=${encodeURIComponent(aiType)}&conversationId=${encodeURIComponent(conversationId)}`, { method: 'DELETE' }),
 };
 
 export const ResearchAPI = {

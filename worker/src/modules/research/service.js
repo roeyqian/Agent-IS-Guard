@@ -66,12 +66,12 @@ export async function getSummary({ request, env, url }) {
   const userRow = await env.db.prepare("SELECT COUNT(*) as value FROM users WHERE role = 'user'").first();
   const orderRow = await env.db.prepare("SELECT COUNT(*) as value FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user'").first();
   const revenueRow = await env.db.prepare("SELECT COALESCE(SUM(o.final_amount), 0) as value FROM orders o JOIN users u ON u.id = o.user_id WHERE u.role = 'user' AND o.status != 'cancelled'").first();
-  const conversationRow = await env.db.prepare("SELECT COUNT(*) as value FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user'").first();
+  const conversationRow = await env.db.prepare("SELECT COUNT(DISTINCT ac.conversation_id) as value FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user'").first();
   const productRow = await env.db.prepare("SELECT COUNT(*) as value FROM products").first();
   const behaviorRow = await env.db.prepare("SELECT COUNT(*) as value FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user'").first();
   const sessionRow = await env.db.prepare("SELECT COUNT(DISTINCT ub.session_id) as value FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user'").first();
   const todayBehaviorRow = await env.db.prepare("SELECT COUNT(*) as value FROM user_behaviors ub JOIN users u ON u.id = ub.user_id WHERE u.role = 'user' AND date(ub.timestamp) = date('now')").first();
-  const todayConversationRow = await env.db.prepare("SELECT COUNT(*) as value FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user' AND date(ac.timestamp) = date('now')").first();
+  const todayConversationRow = await env.db.prepare("SELECT COUNT(DISTINCT ac.conversation_id) as value FROM ai_conversations ac JOIN users u ON u.id = ac.user_id WHERE u.role = 'user' AND date(ac.timestamp) = date('now')").first();
   const behaviorBreakdownRows = await env.db.prepare(
     `SELECT ub.behavior_type, COUNT(*) as value
      FROM user_behaviors ub

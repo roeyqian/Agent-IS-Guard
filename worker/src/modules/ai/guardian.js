@@ -55,11 +55,7 @@ BuyMate 论文中的核心原则：
 请基于以上信息，帮助用户暂停一下，判断这是不是冲动购买。`;
   }
 
-  prompt += `\n\n用户信息：
-- 用户ID：${session.userId}
-- 邮箱：${session.email}
-
-记住：你的目标是保护用户，而不是促进销售。`;
+  prompt += `\n\n记住：你的目标是保护用户，而不是促进销售。`;
 
   return `${prompt}${getResponseLanguageInstruction(locale)}`;
 }

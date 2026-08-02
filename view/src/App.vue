@@ -1400,7 +1400,7 @@
               type="button"
               :aria-label="t('ai.clearHistory')"
               :title="t('ai.clearHistory')"
-              :disabled="!activeAiMessages.length || aiSending || aiClearing"
+              :disabled="!activeAiMessages.length || aiSending || aiClearing || aiHistoryLoading"
               @click="clearAiHistory"
             >
               <Trash2 :size="17" />
@@ -1418,6 +1418,7 @@
             type="button"
             role="tab"
             :aria-selected="aiType === 'seller'"
+            :disabled="aiSending"
             @click="switchAi('seller')"
           >
             <Sparkles :size="16" />
@@ -1429,6 +1430,7 @@
             type="button"
             role="tab"
             :aria-selected="aiType === 'guardian'"
+            :disabled="aiSending"
             @click="switchAi('guardian')"
           >
             <ShieldCheck :size="16" />
@@ -1464,7 +1466,8 @@
             v-if="selectedProduct && aiProductId !== selectedProduct.id"
             class="ghost-btn compact-btn"
             type="button"
-            @click="aiProductId = selectedProduct.id"
+            :disabled="aiSending"
+            @click="useCurrentAiProduct"
           >
             <RefreshCcw :size="15" />
             {{ t('ai.useCurrentProduct') }}
@@ -1472,7 +1475,10 @@
         </div>
 
         <div ref="aiMessagesEl" class="drawer-body ai-body" aria-live="polite">
-          <div v-if="!activeAiMessages.length" class="ai-empty">
+          <div v-if="aiHistoryLoading" class="ai-empty">
+            <span>{{ t('ai.historyLoading') }}</span>
+          </div>
+          <div v-else-if="!activeAiMessages.length" class="ai-empty">
             <span class="ai-empty-icon">
               <MessageSquareMore :size="24" />
             </span>
@@ -1536,14 +1542,26 @@
             v-model="aiMessage"
             rows="3"
             :placeholder="aiType === 'seller' ? t('ai.chatPlaceholderSeller') : t('ai.chatPlaceholderGuardian')"
+            :disabled="aiSending || aiHistoryLoading"
             @keydown="handleAiKeydown"
           ></textarea>
           <button
+            v-if="aiSending"
+            class="secondary-btn send-btn"
+            type="button"
+            :aria-label="t('ai.stop')"
+            :title="t('ai.stop')"
+            @click="stopAiGeneration"
+          >
+            <X :size="18" />
+          </button>
+          <button
+            v-else
             class="primary-btn send-btn"
             type="submit"
             :aria-label="t('ai.send')"
             :title="t('ai.send')"
-            :disabled="aiSending || !aiMessage.trim()"
+            :disabled="aiHistoryLoading || !aiMessage.trim()"
           >
             <SendHorizontal :size="18" />
           </button>
@@ -1827,6 +1845,7 @@ import {
 } from 'lucide-vue-next';
 
 const THEME_STORAGE_KEY = 'shopguard_theme';
+const AI_THREAD_STORAGE_KEY = 'shopguard_ai_threads';
 const PROMOTIONAL_DWELL_MS = 20000;
 const PROMOTIONAL_UNANSWERED_LIMIT = 2;
 const PRESSURE_PAGE_SIZE = 3;
@@ -2013,12 +2032,13 @@ const aiProductId = ref('');
 const aiMessage = ref('');
 const aiSending = ref(false);
 const aiClearing = ref(false);
+const aiHistoryLoading = ref(false);
+const aiHistoryRequestId = ref(0);
+const aiAbortController = ref(null);
+const aiConversationId = ref('');
 const aiMessagesEl = ref(null);
 const aiInputEl = ref(null);
-const aiHistory = reactive({
-  seller: [],
-  guardian: [],
-});
+const aiThreads = reactive({});
 const rationalModeEnabled = ref(true);
 const activePitchIndex = ref(0);
 const comparisonOpen = ref(false);
@@ -2132,7 +2152,7 @@ watch(
 );
 
 watch(
-  () => aiHistory[aiType.value].length,
+  () => activeAiMessages.value.length,
   async () => {
     await nextTick();
     if (aiMessagesEl.value) {
@@ -2260,7 +2280,7 @@ const selectedOrder = computed(() => {
 const selectedOrderView = computed(() => selectedOrderDetail.value || selectedOrder.value);
 
 const aiContextProduct = computed(() => products.value.find((item) => item.id === aiProductId.value) || selectedProduct.value || null);
-const activeAiMessages = computed(() => aiHistory[aiType.value] || []);
+const activeAiMessages = computed(() => getAiThread(aiType.value, aiConversationId.value));
 const activeAiTitle = computed(() => (aiType.value === 'seller' ? t('common.sellerAi') : t('common.guardianAi')));
 const activeAiDescription = computed(() =>
   aiType.value === 'seller' ? t('ai.sellerDescription') : t('ai.guardianDescription'),
@@ -2713,18 +2733,21 @@ async function triggerPromotionalDwellNudge(productId) {
   promotionalNudgeSending.value = true;
   aiType.value = 'seller';
   aiProductId.value = productId;
+  aiConversationId.value = getAiConversationId('seller', productId);
   aiOpen.value = true;
   aiSending.value = true;
 
-  await loadAiHistory('seller');
-  if (countUnansweredAssistantMessages(aiHistory.seller) >= PROMOTIONAL_UNANSWERED_LIMIT) {
+  await loadAiHistory('seller', aiConversationId.value);
+  const conversationId = aiConversationId.value;
+  const thread = getAiThread('seller', conversationId);
+  if (countUnansweredAssistantMessages(thread) >= PROMOTIONAL_UNANSWERED_LIMIT) {
     aiSending.value = false;
     promotionalNudgeSending.value = false;
     return;
   }
 
   try {
-    const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS);
+    const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS, conversationId);
     if (result.skipped) return;
 
     void trackBehavior('view_product', {
@@ -2734,8 +2757,8 @@ async function triggerPromotionalDwellNudge(productId) {
       trigger: 'promotional_ai',
     });
 
-    aiHistory.seller = [
-      ...aiHistory.seller,
+    aiThreads[aiThreadKey('seller', conversationId)] = [
+      ...thread,
       {
         role: 'assistant',
         content: result.response,
@@ -2799,26 +2822,71 @@ function closeAuth() {
 
 function openAi(type = 'seller', product = selectedProduct.value) {
   if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
-  aiType.value = type;
-  aiProductId.value = product?.id || '';
+  activateAiThread(type, product?.id || '');
   aiOpen.value = true;
-  loadAiHistory(type);
+  void loadAiHistory(type, aiConversationId.value);
   void nextTick(() => aiInputEl.value?.focus());
 }
 
 function closeAi() {
+  stopAiGeneration();
   aiOpen.value = false;
 }
 
 function switchAi(type) {
-  aiType.value = type;
-  loadAiHistory(type);
+  if (aiSending.value) return;
+  activateAiThread(type, aiProductId.value);
+  void loadAiHistory(type, aiConversationId.value);
   void nextTick(() => aiInputEl.value?.focus());
+}
+
+function useCurrentAiProduct() {
+  if (aiSending.value || !selectedProduct.value) return;
+  activateAiThread(aiType.value, selectedProduct.value.id);
+  void loadAiHistory(aiType.value, aiConversationId.value);
 }
 
 function applyAiPrompt(prompt) {
   aiMessage.value = prompt;
   void nextTick(() => aiInputEl.value?.focus());
+}
+
+function aiThreadKey(type, conversationId) {
+  return `${type}:${conversationId}`;
+}
+
+function getAiThread(type, conversationId) {
+  if (!conversationId) return [];
+  const key = aiThreadKey(type, conversationId);
+  if (!aiThreads[key]) aiThreads[key] = [];
+  return aiThreads[key];
+}
+
+function getAiConversationId(type, productId = '') {
+  const ownerId = user.value?.id || 'anonymous';
+  const key = `${ownerId}:${type}:${productId || 'general'}`;
+  let threads = {};
+  try {
+    threads = JSON.parse(sessionStorage.getItem(AI_THREAD_STORAGE_KEY) || '{}');
+  } catch {
+    threads = {};
+  }
+  if (!threads[key]) {
+    threads[key] = createClientId('thread');
+    sessionStorage.setItem(AI_THREAD_STORAGE_KEY, JSON.stringify(threads));
+  }
+  return threads[key];
+}
+
+function activateAiThread(type, productId = '') {
+  aiType.value = type;
+  aiProductId.value = productId;
+  aiConversationId.value = getAiConversationId(type, productId);
+}
+
+function createClientId(prefix) {
+  if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
 }
 
 function toggleRationalMode() {
@@ -2864,11 +2932,10 @@ function askGuardianForPitch() {
     keyword: pitch.keyword,
     source: page.value,
   });
-  aiType.value = 'guardian';
-  aiProductId.value = productId || '';
+  activateAiThread('guardian', productId || '');
   aiMessage.value = pitch.prompt;
   aiOpen.value = true;
-  loadAiHistory('guardian');
+  void loadAiHistory('guardian', aiConversationId.value);
   void nextTick(() => aiInputEl.value?.focus());
 }
 
@@ -2881,11 +2948,10 @@ function startIntervention(item, product = selectedProduct.value) {
     source: page.value,
     cartValue: cartTotal.value,
   });
-  aiType.value = 'guardian';
-  aiProductId.value = productId || '';
+  activateAiThread('guardian', productId || '');
   aiMessage.value = item.prompt;
   aiOpen.value = true;
-  loadAiHistory('guardian');
+  void loadAiHistory('guardian', aiConversationId.value);
   void nextTick(() => aiInputEl.value?.focus());
 }
 
@@ -3442,8 +3508,7 @@ function recordPressureProbe(product = selectedProduct.value) {
     productPrice: product?.price || null,
   });
 
-  aiType.value = 'guardian';
-  aiProductId.value = productId || '';
+  activateAiThread('guardian', productId || '');
   aiMessage.value = t('pressure.prompt', {
     name: product?.name || t('common.product'),
     score: pressureScore.value,
@@ -3452,7 +3517,7 @@ function recordPressureProbe(product = selectedProduct.value) {
   });
   aiOpen.value = true;
   pressureOpen.value = false;
-  loadAiHistory('guardian');
+  void loadAiHistory('guardian', aiConversationId.value);
   toast(t('toast.pressureProbeSaved'));
   void nextTick(() => aiInputEl.value?.focus());
 }
@@ -3822,14 +3887,24 @@ async function testAdminAi() {
   }
 }
 
-async function loadAiHistory(type) {
+async function loadAiHistory(type, conversationId = aiConversationId.value) {
   if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
+  if (!conversationId) return;
+  const requestId = ++aiHistoryRequestId.value;
+  const isActiveThread = () => aiType.value === type && aiConversationId.value === conversationId;
+  if (isActiveThread()) aiHistoryLoading.value = true;
   try {
-    const result = await AIAPI.getHistory(type);
-    aiHistory[type] = (result.history || []).slice().reverse();
+    const result = await AIAPI.getHistory(type, conversationId);
+    if (requestId === aiHistoryRequestId.value) {
+      aiThreads[aiThreadKey(type, conversationId)] = (result.history || []).slice().reverse();
+    }
   } catch (error) {
     if (error.status !== 401) {
       toast(error.message || t('toast.chatLoadFailed'), 'error');
+    }
+  } finally {
+    if (requestId === aiHistoryRequestId.value && isActiveThread()) {
+      aiHistoryLoading.value = false;
     }
   }
 }
@@ -3837,13 +3912,22 @@ async function loadAiHistory(type) {
 async function sendAiMessage() {
   if (!ensureStandardUser(t('toast.adminAiBlocked'))) return;
   const message = aiMessage.value.trim();
-  if (!message || aiSending.value) return;
+  if (!message || aiSending.value || aiHistoryLoading.value) return;
 
   const type = aiType.value;
   const productId = aiProductId.value || selectedProduct.value?.id || null;
+  const conversationId = aiConversationId.value;
+  const clientMessageId = createClientId('message');
+  if (!conversationId) return;
+  const threadKey = aiThreadKey(type, conversationId);
   aiSending.value = true;
   aiMessage.value = '';
-  aiHistory[type] = [...aiHistory[type], { role: 'user', content: message }];
+  aiThreads[threadKey] = [
+    ...getAiThread(type, conversationId),
+    { role: 'user', content: message, client_message_id: clientMessageId },
+  ];
+  const controller = new AbortController();
+  aiAbortController.value = controller;
   void trackBehavior('chat_ai', {
     aiType: type,
     productId: productId || null,
@@ -3851,22 +3935,33 @@ async function sendAiMessage() {
   });
 
   try {
-    const result = await AIAPI.chat(message, type, productId);
-    aiHistory[type] = [
-      ...aiHistory[type],
+    const result = await AIAPI.chat(message, type, productId, conversationId, clientMessageId, { signal: controller.signal });
+    aiThreads[threadKey] = [
+      ...getAiThread(type, conversationId),
       { role: 'assistant', content: result.response },
     ];
     await nextTick();
   } catch (error) {
-    if (error.status === 401) {
+    if (error.name === 'AbortError' || error.status === 499) {
+      await loadAiHistory(type, conversationId);
+    } else if (error.status === 401) {
       openAuth('login');
     } else {
       toast(error.message || t('toast.aiFailed'), 'error');
     }
-    await loadAiHistory(type);
+    if (error.name !== 'AbortError' && error.status !== 499) {
+      await loadAiHistory(type, conversationId);
+    }
   } finally {
-    aiSending.value = false;
+    if (aiAbortController.value === controller) {
+      aiAbortController.value = null;
+      aiSending.value = false;
+    }
   }
+}
+
+function stopAiGeneration() {
+  aiAbortController.value?.abort();
 }
 
 async function clearAiHistory() {
@@ -3875,10 +3970,11 @@ async function clearAiHistory() {
   if (!window.confirm(t('ai.clearHistoryConfirm', { name: activeAiTitle.value }))) return;
 
   const type = aiType.value;
+  const conversationId = aiConversationId.value;
   aiClearing.value = true;
   try {
-    await AIAPI.clearHistory(type);
-    aiHistory[type] = [];
+    await AIAPI.clearHistory(type, conversationId);
+    aiThreads[aiThreadKey(type, conversationId)] = [];
     aiMessage.value = '';
     toast(t('toast.chatHistoryCleared'));
     await nextTick();

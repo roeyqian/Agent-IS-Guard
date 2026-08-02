@@ -98,11 +98,12 @@ npm run db:seed
 npm run db:events
 npm run db:i18n
 npm run db:interventions
+npm run db:ai-safety
 ```
 
 如果你在 Cloudflare 上使用了不同的数据库名，请同步调整 `worker/package.json` 里的脚本。
 
-如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql`、`worker/src/migrations/0004_product_i18n.sql` 和 `worker/src/migrations/0006_intervention_behavior.sql`。
+如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql`、`worker/src/migrations/0004_product_i18n.sql`、`worker/src/migrations/0006_intervention_behavior.sql` 和 `worker/src/migrations/0007_ai_conversation_safety.sql`。
 
 ## 管理员 / Admin
 

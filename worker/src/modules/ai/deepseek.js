@@ -1,4 +1,6 @@
-export async function callDeepSeek(config, systemPrompt, messageHistory, userMessage) {
+const PROVIDER_TIMEOUT_MS = 30_000;
+
+export async function callDeepSeek(config, systemPrompt, messageHistory, userMessage, options = {}) {
   const messages = [
     { role: 'system', content: systemPrompt },
     ...messageHistory,
@@ -10,7 +12,7 @@ export async function callDeepSeek(config, systemPrompt, messageHistory, userMes
     messages,
     temperature: 0.7,
     max_tokens: 500
-  });
+  }, options);
 
   return data.choices[0].message.content;
 }
@@ -33,15 +35,36 @@ export async function testDeepSeekConnection(config) {
   };
 }
 
-async function postDeepSeek(config, payload) {
-  const response = await fetch(`${normalizeBaseUrl(config.deepseek_base_url)}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.deepseek_api_key}`
-    },
-    body: JSON.stringify(payload)
-  });
+async function postDeepSeek(config, payload, { signal } = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort('timeout'), PROVIDER_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort('cancelled');
+  signal?.addEventListener('abort', abortFromCaller, { once: true });
+
+  let response;
+  try {
+    response = await fetch(`${normalizeBaseUrl(config.deepseek_base_url)}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.deepseek_api_key}`
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const cancelled = controller.signal.reason === 'cancelled';
+      throw {
+        status: cancelled ? 499 : 504,
+        message: cancelled ? 'AI request cancelled' : 'AI service timed out',
+      };
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', abortFromCaller);
+  }
 
   if (!response.ok) {
     const error = await readProviderError(response);

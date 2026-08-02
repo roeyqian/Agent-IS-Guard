@@ -6,6 +6,9 @@ import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
 
 const HIDDEN_METADATA_KEY = 'hiddenFromUser';
 const PROMOTIONAL_UNANSWERED_LIMIT = 2;
+const MAX_MESSAGE_LENGTH = 2_000;
+const MAX_AI_REQUESTS_PER_MINUTE = 12;
+const HISTORY_LIMIT = 20;
 const HISTORY_ORDER_DESC = `
     ORDER BY timestamp DESC,
       CASE role WHEN 'assistant' THEN 0 WHEN 'user' THEN 1 ELSE 2 END,
@@ -15,15 +18,29 @@ const HISTORY_ORDER_DESC = `
 export async function chat({ request, env, url }) {
   const { token, session } = await requireStandardUser(request, env);
   const locale = getLocaleFromRequest(request, url);
-  const { message, aiType, productId } = await readJsonBody(request);
+  const body = await readJsonBody(request);
+  const message = String(body.message || '').trim();
+  const { aiType, productId } = body;
+  const conversationId = requireConversationId(body.conversationId);
+  const clientMessageId = requireClientMessageId(body.clientMessageId);
 
   if (!message || !aiType) {
     throw { status: 400, message: "Message and aiType required" };
   }
 
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    throw { status: 400, message: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer` };
+  }
+
   if (!['seller', 'guardian'].includes(aiType)) {
     throw { status: 400, message: "Invalid AI type" };
   }
+
+  const duplicate = await findIdempotentResponse(env, session.userId, clientMessageId);
+  if (duplicate.response) return json({ response: duplicate.response, aiType, idempotent: true });
+  if (duplicate.pending) throw { status: 409, message: 'AI request is still being processed' };
+
+  await enforceAiRateLimit(env, session.userId);
 
   const config = await env.db.prepare("SELECT * FROM ai_config WHERE id = 1").first();
   if (!config || !config.deepseek_api_key) {
@@ -40,10 +57,10 @@ export async function chat({ request, env, url }) {
 
   const { results: history } = await env.db.prepare(`
     SELECT role, content FROM ai_conversations
-    WHERE user_id = ? AND ai_type = ?
+    WHERE user_id = ? AND ai_type = ? AND conversation_id = ?
     ${HISTORY_ORDER_DESC}
-    LIMIT 10
-  `).bind(session.userId, aiType).all();
+    LIMIT ${HISTORY_LIMIT}
+  `).bind(session.userId, aiType, conversationId).all();
 
   const messages = history.reverse().map(h => ({ role: h.role, content: h.content }));
 
@@ -57,39 +74,70 @@ export async function chat({ request, env, url }) {
     ? getSellerPrompt(productInfo, locale)
     : getGuardianPrompt(session, productInfo, locale);
 
+  const messageRecordId = createId("conv");
   const userTimestamp = new Date().toISOString();
-  const aiResponse = await callDeepSeek(config, systemPrompt, messages, message);
-  const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
 
-  const conversationId = createId("conv");
-
-  await env.db.prepare(`
-    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
-    VALUES (?, ?, ?, ?, 'user', ?, ?, ?, ?)
+  const reservation = await env.db.prepare(`
+    INSERT INTO ai_conversations (id, user_id, session_id, conversation_id, client_message_id, ai_type, role, content, product_id, metadata_json, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, 'user', ?, ?, ?, ?)
   `).bind(
-    `${conversationId}_u`,
+    `${messageRecordId}_u`,
     session.userId,
     token,
+    conversationId,
+    clientMessageId,
     aiType,
     message,
     productId || null,
     JSON.stringify({ messageLength: message.length, source: 'research-shell' }),
     userTimestamp
-  ).run();
+  ).run().catch(async (error) => {
+    const existing = await findIdempotentResponse(env, session.userId, clientMessageId);
+    if (existing.response) return { duplicateResponse: existing.response };
+    if (existing.pending) return { duplicatePending: true };
+    throw error;
+  });
 
-  await env.db.prepare(`
-    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
-    VALUES (?, ?, ?, ?, 'assistant', ?, ?, ?, ?)
-  `).bind(
-    `${conversationId}_a`,
-    session.userId,
-    token,
-    aiType,
-    aiResponse,
-    productId || null,
-    JSON.stringify({ model: config.deepseek_model || 'deepseek-chat' }),
-    assistantTimestamp
-  ).run();
+  if (reservation?.duplicateResponse) {
+    return json({ response: reservation.duplicateResponse, aiType, idempotent: true });
+  }
+  if (reservation?.duplicatePending) {
+    throw { status: 409, message: 'AI request is still being processed' };
+  }
+
+  let aiResponse;
+  try {
+    aiResponse = await callDeepSeek(config, systemPrompt, messages, message, { signal: request.signal });
+  } catch (error) {
+    await env.db.prepare('DELETE FROM ai_conversations WHERE user_id = ? AND client_message_id = ?')
+      .bind(session.userId, clientMessageId)
+      .run();
+    throw error;
+  }
+  const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
+
+  try {
+    await env.db.prepare(`
+      INSERT INTO ai_conversations (id, user_id, session_id, conversation_id, reply_to_message_id, ai_type, role, content, product_id, metadata_json, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, 'assistant', ?, ?, ?, ?)
+    `).bind(
+      `${messageRecordId}_a`,
+      session.userId,
+      token,
+      conversationId,
+      clientMessageId,
+      aiType,
+      aiResponse,
+      productId || null,
+      JSON.stringify({ model: config.deepseek_model || 'deepseek-chat' }),
+      assistantTimestamp
+    ).run();
+  } catch (error) {
+    await env.db.prepare('DELETE FROM ai_conversations WHERE user_id = ? AND client_message_id = ?')
+      .bind(session.userId, clientMessageId)
+      .run();
+    throw error;
+  }
 
   return json({ response: aiResponse, aiType });
 }
@@ -97,7 +145,8 @@ export async function chat({ request, env, url }) {
 export async function promotionalNudge({ request, env, url }) {
   const { token, session } = await requireStandardUser(request, env);
   const locale = getLocaleFromRequest(request, url);
-  const { productId, dwellMs, source } = await readJsonBody(request);
+  const { productId, dwellMs, source, conversationId: rawConversationId } = await readJsonBody(request);
+  const conversationId = requireConversationId(rawConversationId);
 
   if (!productId) {
     throw { status: 400, message: "Product required" };
@@ -125,10 +174,10 @@ export async function promotionalNudge({ request, env, url }) {
   const productInfo = normalizeProduct(product, locale);
   const { results: history } = await env.db.prepare(`
     SELECT role, content, metadata_json FROM ai_conversations
-    WHERE user_id = ? AND ai_type = 'seller'
+    WHERE user_id = ? AND ai_type = 'seller' AND conversation_id = ?
     ${HISTORY_ORDER_DESC}
     LIMIT 50
-  `).bind(session.userId).all();
+  `).bind(session.userId, conversationId).all();
 
   if (countUnansweredAssistantMessages(history) >= PROMOTIONAL_UNANSWERED_LIMIT) {
     return json({
@@ -143,38 +192,26 @@ export async function promotionalNudge({ request, env, url }) {
     .reverse()
     .map(({ role, content }) => ({ role, content }));
 
-  const userMessage = buildPromotionalNudgePrompt(productInfo, locale);
+  const nudgeInstruction = buildPromotionalNudgePrompt(productInfo, locale);
 
   const userTimestamp = new Date().toISOString();
-  const aiResponse = await callDeepSeek(config, getSellerPrompt(productInfo, locale), messages, userMessage);
+  const aiResponse = await callDeepSeek(
+    config,
+    `${getSellerPrompt(productInfo, locale)}\n\n${nudgeInstruction}`,
+    messages,
+    locale === 'en-US' ? 'Please send the proactive message now.' : '请现在发送这条主动消息。',
+    { signal: request.signal },
+  );
   const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
-  const conversationId = createId("conv");
-  const triggerMetadata = {
-    [HIDDEN_METADATA_KEY]: true,
-    source: source || 'long-product-dwell',
-    dwellMs: dwellDuration,
-  };
-
+  const messageRecordId = createId("conv");
   await env.db.prepare(`
-    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
-    VALUES (?, ?, ?, 'seller', 'user', ?, ?, ?, ?)
+    INSERT INTO ai_conversations (id, user_id, session_id, conversation_id, ai_type, role, content, product_id, metadata_json, timestamp)
+    VALUES (?, ?, ?, ?, 'seller', 'assistant', ?, ?, ?, ?)
   `).bind(
-    `${conversationId}_u`,
+    `${messageRecordId}_a`,
     session.userId,
     token,
-    userMessage,
-    productId,
-    JSON.stringify(triggerMetadata),
-    userTimestamp
-  ).run();
-
-  await env.db.prepare(`
-    INSERT INTO ai_conversations (id, user_id, session_id, ai_type, role, content, product_id, metadata_json, timestamp)
-    VALUES (?, ?, ?, 'seller', 'assistant', ?, ?, ?, ?)
-  `).bind(
-    `${conversationId}_a`,
-    session.userId,
-    token,
+    conversationId,
     aiResponse,
     productId,
     JSON.stringify({
@@ -192,16 +229,17 @@ export async function promotionalNudge({ request, env, url }) {
 export async function getHistory({ request, env, url }) {
   const { session } = await requireStandardUser(request, env);
   const aiType = url.searchParams.get('aiType');
+  const conversationId = requireConversationId(url.searchParams.get('conversationId'));
 
-  let query = "SELECT * FROM ai_conversations WHERE user_id = ?";
-  const params = [session.userId];
+  let query = "SELECT * FROM ai_conversations WHERE user_id = ? AND conversation_id = ?";
+  const params = [session.userId, conversationId];
 
   if (aiType) {
     query += " AND ai_type = ?";
     params.push(aiType);
   }
 
-  query += ` ${HISTORY_ORDER_DESC} LIMIT 50`;
+  query += ` ${HISTORY_ORDER_DESC} LIMIT ${HISTORY_LIMIT}`;
 
   const { results } = await env.db.prepare(query).bind(...params).all();
 
@@ -211,6 +249,7 @@ export async function getHistory({ request, env, url }) {
 export async function clearHistory({ request, env, url }) {
   const { session } = await requireStandardUser(request, env);
   const aiType = url.searchParams.get('aiType');
+  const conversationId = requireConversationId(url.searchParams.get('conversationId'));
 
   if (!['seller', 'guardian'].includes(aiType)) {
     throw { status: 400, message: 'A valid AI type is required' };
@@ -218,10 +257,55 @@ export async function clearHistory({ request, env, url }) {
 
   const result = await env.db.prepare(`
     DELETE FROM ai_conversations
-    WHERE user_id = ? AND ai_type = ?
-  `).bind(session.userId, aiType).run();
+    WHERE user_id = ? AND ai_type = ? AND conversation_id = ?
+  `).bind(session.userId, aiType, conversationId).run();
 
   return json({ aiType, clearedCount: result.meta.changes || 0 });
+}
+
+function requireConversationId(value) {
+  const conversationId = String(value || '').trim();
+  if (!/^[a-zA-Z0-9_-]{12,100}$/.test(conversationId)) {
+    throw { status: 400, message: 'A valid conversation ID is required' };
+  }
+  return conversationId;
+}
+
+function requireClientMessageId(value) {
+  const clientMessageId = String(value || '').trim();
+  if (!/^[a-zA-Z0-9_-]{12,100}$/.test(clientMessageId)) {
+    throw { status: 400, message: 'A valid client message ID is required' };
+  }
+  return clientMessageId;
+}
+
+async function findIdempotentResponse(env, userId, clientMessageId) {
+  const userMessage = await env.db.prepare(`
+    SELECT id FROM ai_conversations
+    WHERE user_id = ? AND client_message_id = ?
+  `).bind(userId, clientMessageId).first();
+
+  if (!userMessage) return { pending: false, response: '' };
+
+  const assistantMessage = await env.db.prepare(`
+    SELECT content FROM ai_conversations
+    WHERE user_id = ? AND reply_to_message_id = ?
+    LIMIT 1
+  `).bind(userId, clientMessageId).first();
+
+  return { pending: !assistantMessage, response: assistantMessage?.content || '' };
+}
+
+async function enforceAiRateLimit(env, userId) {
+  const row = await env.db.prepare(`
+    SELECT COUNT(*) AS value FROM ai_conversations
+    WHERE user_id = ? AND role = 'user'
+      AND timestamp >= datetime('now', '-60 seconds')
+  `).bind(userId).first();
+
+  if (Number(row?.value || 0) >= MAX_AI_REQUESTS_PER_MINUTE) {
+    throw { status: 429, message: 'Too many AI requests. Please wait a moment and try again.' };
+  }
 }
 
 function isHiddenConversation(item) {
