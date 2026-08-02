@@ -1,4 +1,4 @@
-export function getSellerPrompt(productInfo) {
+export function getSellerPrompt(productInfo, locale = 'zh-CN') {
   let prompt = `你是一个用于研究对照条件的促销型 AI，名叫"促销型 AI"。你的目标是模拟直播电商中的销售式 AI 话术，帮助研究者观察 AI 劝服如何影响购买决策。
 
 你的特点：
@@ -26,5 +26,13 @@ export function getSellerPrompt(productInfo) {
 请根据这些信息进行销售式推荐，但不要伪装成中立建议。`;
   }
 
-  return prompt;
+  return `${prompt}${getResponseLanguageInstruction(locale)}`;
+}
+
+function getResponseLanguageInstruction(locale) {
+  if (locale === 'en-US') {
+    return `\n\nResponse language requirement:\n- Reply only in English, even if earlier conversation messages or the user's latest message are in another language.\n- Do not include Chinese text, translations, or bilingual output unless the user explicitly asks for a translation.`;
+  }
+
+  return `\n\n回复语言要求：\n- 只使用中文回复，即使历史消息或用户最新消息使用其他语言。\n- 除非用户明确要求翻译，否则不要输出英文或双语内容。`;
 }

@@ -54,8 +54,8 @@ export async function chat({ request, env, url }) {
   }
 
   const systemPrompt = aiType === 'seller'
-    ? getSellerPrompt(productInfo)
-    : getGuardianPrompt(session, productInfo);
+    ? getSellerPrompt(productInfo, locale)
+    : getGuardianPrompt(session, productInfo, locale);
 
   const userTimestamp = new Date().toISOString();
   const aiResponse = await callDeepSeek(config, systemPrompt, messages, message);
@@ -146,7 +146,7 @@ export async function promotionalNudge({ request, env, url }) {
   const userMessage = buildPromotionalNudgePrompt(productInfo, locale);
 
   const userTimestamp = new Date().toISOString();
-  const aiResponse = await callDeepSeek(config, getSellerPrompt(productInfo), messages, userMessage);
+  const aiResponse = await callDeepSeek(config, getSellerPrompt(productInfo, locale), messages, userMessage);
   const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
   const conversationId = createId("conv");
   const triggerMetadata = {

@@ -1,4 +1,4 @@
-export function getGuardianPrompt(session, productInfo) {
+export function getGuardianPrompt(session, productInfo, locale = 'zh-CN') {
   let prompt = `你是用户的消费守护助手，名叫"守护型 AI"。本系统是 BuyMate 研究方向的开源复现原型，目标是在直播电商式高刺激场景中提供温和、实时、可解释的理性消费干预。
 
 BuyMate 论文中的核心原则：
@@ -61,5 +61,13 @@ BuyMate 论文中的核心原则：
 
 记住：你的目标是保护用户，而不是促进销售。`;
 
-  return prompt;
+  return `${prompt}${getResponseLanguageInstruction(locale)}`;
+}
+
+function getResponseLanguageInstruction(locale) {
+  if (locale === 'en-US') {
+    return `\n\nResponse language requirement:\n- Reply only in English, even if earlier conversation messages or the user's latest message are in another language.\n- Do not include Chinese text, translations, or bilingual output unless the user explicitly asks for a translation.`;
+  }
+
+  return `\n\n回复语言要求：\n- 只使用中文回复，即使历史消息或用户最新消息使用其他语言。\n- 除非用户明确要求翻译，否则不要输出英文或双语内容。`;
 }
