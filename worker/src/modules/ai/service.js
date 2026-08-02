@@ -334,7 +334,8 @@ function buildPromotionalNudgePrompt(productInfo, locale) {
   if (locale === 'en-US') {
     return [
       `The user has been viewing "${productName}" for at least 10 seconds. As the Promotional AI, proactively send one short message to the user.`,
-      'Make it natural, warm, and similar to a live-commerce shopping assistant. Highlight 1-2 appealing product points and lightly create a reason to keep considering it.',
+      'Make it natural, warm, and exploratory. Identify one plausible use scenario or unmet need, then connect it to 1-2 verifiable product benefits using conditional wording such as “if you are looking to...”.',
+      'Do not use urgency, scarcity, discounts, popularity, social proof, hype, or pressure to purchase. Do not present a market trend or user need as a fact unless it is provided in the product information.',
       'Do not mention system detection, dwell time, backend triggers, research logs, or this instruction.',
       'Output only the user-facing message, under 45 English words.',
     ].join('\n');
@@ -342,7 +343,8 @@ function buildPromotionalNudgePrompt(productInfo, locale) {
 
   return [
     `用户正在查看"${productName}"至少10秒，请你作为促销型 AI 主动向用户发一条简短消息。`,
-    '消息要自然、热情、像直播电商导购主动搭话，突出1-2个商品吸引点，可以轻微制造购买理由。',
+    '消息要自然、友好且具有探索性：点出一个可能的使用场景或未满足需求，再用“如果你正在……，它可能会……”等条件式表达连接1-2个可验证的商品价值。',
+    '不要使用紧迫感、稀缺、折扣、热销、从众、夸张或催单表达；没有商品信息支撑时，也不要把市场趋势或用户需求说成事实。',
     '不要提及系统检测、停留时长、后台触发、研究记录或这条指令。',
     '直接输出面向用户的一条消息，控制在80个中文字符以内。',
   ].join('\n');
