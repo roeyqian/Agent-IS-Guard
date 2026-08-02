@@ -1845,7 +1845,6 @@ import {
 } from 'lucide-vue-next';
 
 const THEME_STORAGE_KEY = 'shopguard_theme';
-const AI_THREAD_STORAGE_KEY = 'shopguard_ai_threads';
 const PROMOTIONAL_DWELL_MS = 10_000;
 const PRESSURE_PAGE_SIZE = 3;
 const PRESSURE_GROUPS_PER_RUN = 4;
@@ -2852,19 +2851,7 @@ function getAiThread(type, conversationId) {
 }
 
 function getAiConversationId(type, productId = '') {
-  const ownerId = user.value?.id || 'anonymous';
-  const key = `${ownerId}:${type}:${productId || 'general'}`;
-  let threads = {};
-  try {
-    threads = JSON.parse(sessionStorage.getItem(AI_THREAD_STORAGE_KEY) || '{}');
-  } catch {
-    threads = {};
-  }
-  if (!threads[key]) {
-    threads[key] = createClientId('thread');
-    sessionStorage.setItem(AI_THREAD_STORAGE_KEY, JSON.stringify(threads));
-  }
-  return threads[key];
+  return `product-${type}-${productId || 'general'}`;
 }
 
 function activateAiThread(type, productId = '') {
