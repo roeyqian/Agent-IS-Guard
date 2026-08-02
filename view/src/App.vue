@@ -83,21 +83,21 @@
             </p>
 
             <div class="hero-actions">
-              <button class="primary-btn" type="button" @click="isAdminUser ? go('admin') : go('products')">
-                <Search :size="16" />
-                {{ isAdminUser ? t('hero.adminCta') : t('hero.primaryCta') }}
+              <button v-if="!isAdminUser" class="primary-btn" type="button" @click="go('orders')">
+                <Truck :size="16" />
+                {{ t('hero.viewRecords') }}
+              </button>
+              <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="openAi('seller')">
+                <Bot :size="16" />
+                {{ t('hero.openPromotional') }}
               </button>
               <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="openAi('guardian')">
                 <ShieldCheck :size="16" />
                 {{ t('hero.openGuardian') }}
               </button>
-              <button v-if="!isAdminUser" class="secondary-btn" type="button" @click="go('orders')">
-                <Truck :size="16" />
-                {{ t('hero.viewRecords') }}
-              </button>
-              <button v-else class="secondary-btn" type="button" @click="go('admin')">
+              <button v-else class="primary-btn" type="button" @click="go('admin')">
                 <BarChart3 :size="16" />
-                {{ t('hero.analyzeUsers') }}
+                {{ t('hero.adminCta') }}
               </button>
             </div>
 
