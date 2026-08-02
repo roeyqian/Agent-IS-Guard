@@ -144,7 +144,7 @@ export const AIAPI = {
         productId,
         dwellMs,
         conversationId,
-        source: 'long-product-dwell',
+        source: 'product-dwell',
       }),
     }),
   getHistory: (aiType, conversationId) =>

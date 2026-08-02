@@ -5,7 +5,6 @@ import { getGuardianPrompt } from "./guardian.js";
 import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
 
 const HIDDEN_METADATA_KEY = 'hiddenFromUser';
-const PROMOTIONAL_UNANSWERED_LIMIT = 2;
 const MAX_MESSAGE_LENGTH = 2_000;
 const MAX_AI_REQUESTS_PER_MINUTE = 12;
 const HISTORY_LIMIT = 20;
@@ -153,8 +152,8 @@ export async function promotionalNudge({ request, env, url }) {
   }
 
   const dwellDuration = Number(dwellMs || 0);
-  if (!Number.isFinite(dwellDuration) || dwellDuration < 20000) {
-    throw { status: 400, message: "Dwell time must be at least 20 seconds" };
+  if (!Number.isFinite(dwellDuration) || dwellDuration < 10_000) {
+    throw { status: 400, message: "Dwell time must be at least 10 seconds" };
   }
 
   const config = await env.db.prepare("SELECT * FROM ai_config WHERE id = 1").first();
@@ -179,10 +178,15 @@ export async function promotionalNudge({ request, env, url }) {
     LIMIT 50
   `).bind(session.userId, conversationId).all();
 
-  if (countUnansweredAssistantMessages(history) >= PROMOTIONAL_UNANSWERED_LIMIT) {
+  const hasPromotionalMessage = await env.db.prepare(`
+    SELECT 1 FROM ai_conversations
+    WHERE user_id = ? AND ai_type = 'seller' AND conversation_id = ? AND role = 'assistant'
+    LIMIT 1
+  `).bind(session.userId, conversationId).first();
+  if (hasPromotionalMessage && Math.random() >= 0.5) {
     return json({
       skipped: true,
-      reason: 'unanswered_promotional_limit',
+      reason: 'randomly_skipped',
       aiType: 'seller',
     });
   }
@@ -216,7 +220,7 @@ export async function promotionalNudge({ request, env, url }) {
     productId,
     JSON.stringify({
       model: config.deepseek_model || 'deepseek-chat',
-      source: source || 'long-product-dwell',
+      source: source || 'product-dwell',
       dwellMs: dwellDuration,
       proactive: true,
     }),
@@ -317,16 +321,6 @@ function isHiddenConversation(item) {
   }
 }
 
-function countUnansweredAssistantMessages(history) {
-  let count = 0;
-  for (const item of history) {
-    if (isHiddenConversation(item)) continue;
-    if (item.role === 'user') break;
-    if (item.role === 'assistant') count += 1;
-  }
-  return count;
-}
-
 function createLaterIsoTimestamp(previousTimestamp) {
   const previousTime = Date.parse(previousTimestamp);
   const now = Date.now();
@@ -339,7 +333,7 @@ function buildPromotionalNudgePrompt(productInfo, locale) {
 
   if (locale === 'en-US') {
     return [
-      `The user just clicked and stayed on "${productName}" for more than 20 seconds. As the Promotional AI, proactively send one short message to the user.`,
+      `The user has been viewing "${productName}" for at least 10 seconds. As the Promotional AI, proactively send one short message to the user.`,
       'Make it natural, warm, and similar to a live-commerce shopping assistant. Highlight 1-2 appealing product points and lightly create a reason to keep considering it.',
       'Do not mention system detection, dwell time, backend triggers, research logs, or this instruction.',
       'Output only the user-facing message, under 45 English words.',
@@ -347,7 +341,7 @@ function buildPromotionalNudgePrompt(productInfo, locale) {
   }
 
   return [
-    `用户刚刚点开并停留查看"${productName}"超过20秒，请你作为促销型 AI 主动向用户发一条简短消息。`,
+    `用户正在查看"${productName}"至少10秒，请你作为促销型 AI 主动向用户发一条简短消息。`,
     '消息要自然、热情、像直播电商导购主动搭话，突出1-2个商品吸引点，可以轻微制造购买理由。',
     '不要提及系统检测、停留时长、后台触发、研究记录或这条指令。',
     '直接输出面向用户的一条消息，控制在80个中文字符以内。',

@@ -1846,8 +1846,7 @@ import {
 
 const THEME_STORAGE_KEY = 'shopguard_theme';
 const AI_THREAD_STORAGE_KEY = 'shopguard_ai_threads';
-const PROMOTIONAL_DWELL_MS = 20000;
-const PROMOTIONAL_UNANSWERED_LIMIT = 2;
+const PROMOTIONAL_DWELL_MS = 10_000;
 const PRESSURE_PAGE_SIZE = 3;
 const PRESSURE_GROUPS_PER_RUN = 4;
 const DINO_GRAVITY = 0.00175;
@@ -2045,7 +2044,6 @@ const comparisonOpen = ref(false);
 const promotionalDwellTimer = ref(null);
 const promotionalDwellProductId = ref('');
 const promotionalNudgeSending = ref(false);
-const promotedDwellProducts = new Set();
 
 const adminConfig = ref(null);
 const adminStats = ref(null);
@@ -2697,7 +2695,7 @@ function pickProduct(id) {
 
 function schedulePromotionalDwellNudge(productId) {
   clearPromotionalDwellTimer();
-  if (!token.value || isAdminUser.value || promotedDwellProducts.has(productId)) return;
+  if (!token.value || isAdminUser.value) return;
   if (document.visibilityState === 'hidden') return;
 
   promotionalDwellProductId.value = productId;
@@ -2724,36 +2722,34 @@ async function triggerPromotionalDwellNudge(productId) {
   const product = products.value.find((item) => item.id === productId);
   clearPromotionalDwellTimer();
 
-  if (!product || promotedDwellProducts.has(productId)) return;
+  if (!product) return;
   if (!token.value || isAdminUser.value || page.value !== 'products') return;
   if (selectedProductId.value !== productId || document.visibilityState === 'hidden') return;
-  if (aiSending.value || promotionalNudgeSending.value) return;
+  if (aiSending.value || promotionalNudgeSending.value) {
+    schedulePromotionalDwellNudge(productId);
+    return;
+  }
 
-  promotedDwellProducts.add(productId);
   promotionalNudgeSending.value = true;
   aiType.value = 'seller';
   aiProductId.value = productId;
   aiConversationId.value = getAiConversationId('seller', productId);
   aiOpen.value = true;
   aiSending.value = true;
-
-  await loadAiHistory('seller', aiConversationId.value);
   const conversationId = aiConversationId.value;
-  const thread = getAiThread('seller', conversationId);
-  if (countUnansweredAssistantMessages(thread) >= PROMOTIONAL_UNANSWERED_LIMIT) {
-    aiSending.value = false;
-    promotionalNudgeSending.value = false;
-    return;
-  }
 
   try {
+    await loadAiHistory('seller', conversationId);
+    if (selectedProductId.value !== productId || page.value !== 'products' || document.visibilityState === 'hidden') return;
+
+    const thread = getAiThread('seller', conversationId);
     const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS, conversationId);
     if (result.skipped) return;
 
     void trackBehavior('view_product', {
       productId,
       durationMs: PROMOTIONAL_DWELL_MS,
-      source: 'long-product-dwell',
+      source: 'product-dwell',
       trigger: 'promotional_ai',
     });
 
@@ -2775,17 +2771,10 @@ async function triggerPromotionalDwellNudge(productId) {
   } finally {
     aiSending.value = false;
     promotionalNudgeSending.value = false;
+    if (selectedProductId.value && page.value === 'products' && document.visibilityState !== 'hidden') {
+      schedulePromotionalDwellNudge(selectedProductId.value);
+    }
   }
-}
-
-function countUnansweredAssistantMessages(history) {
-  let count = 0;
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    const role = history[index]?.role;
-    if (role === 'user') break;
-    if (role === 'assistant') count += 1;
-  }
-  return count;
 }
 
 function pickOrder(id) {
@@ -4019,7 +4008,6 @@ async function submitAuth() {
 
 async function logout() {
   clearPromotionalDwellTimer();
-  promotedDwellProducts.clear();
   try {
     await AuthAPI.logout();
   } catch {
