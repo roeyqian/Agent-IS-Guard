@@ -8,6 +8,7 @@ const HIDDEN_METADATA_KEY = 'hiddenFromUser';
 const MAX_MESSAGE_LENGTH = 2_000;
 const MAX_AI_REQUESTS_PER_MINUTE = 12;
 const HISTORY_LIMIT = 20;
+const MAX_CONSECUTIVE_AUTOMATIC_PROMOTIONS = 3;
 const HISTORY_ORDER_DESC = `
     ORDER BY timestamp DESC,
       CASE role WHEN 'assistant' THEN 0 WHEN 'user' THEN 1 ELSE 2 END,
@@ -178,15 +179,15 @@ export async function promotionalNudge({ request, env, url }) {
     LIMIT 50
   `).bind(session.userId, conversationId).all();
 
-  const hasPromotionalMessage = await env.db.prepare(`
-    SELECT 1 FROM ai_conversations
-    WHERE user_id = ? AND ai_type = 'seller' AND conversation_id = ? AND role = 'assistant'
-    LIMIT 1
-  `).bind(session.userId, conversationId).first();
-  if (hasPromotionalMessage && Math.random() >= 0.5) {
+  const consecutiveAutomaticPromotions = await getConsecutiveAutomaticPromotions(
+    env,
+    session.userId,
+    productId,
+  );
+  if (consecutiveAutomaticPromotions >= MAX_CONSECUTIVE_AUTOMATIC_PROMOTIONS) {
     return json({
       skipped: true,
-      reason: 'randomly_skipped',
+      reason: 'consecutive_automatic_promotions_limit',
       aiType: 'seller',
     });
   }
@@ -223,6 +224,7 @@ export async function promotionalNudge({ request, env, url }) {
       source: source || 'product-dwell',
       dwellMs: dwellDuration,
       proactive: true,
+      automaticPromotion: true,
     }),
     assistantTimestamp
   ).run();
@@ -309,6 +311,30 @@ async function enforceAiRateLimit(env, userId) {
 
   if (Number(row?.value || 0) >= MAX_AI_REQUESTS_PER_MINUTE) {
     throw { status: 429, message: 'Too many AI requests. Please wait a moment and try again.' };
+  }
+}
+
+async function getConsecutiveAutomaticPromotions(env, userId, productId) {
+  const { results } = await env.db.prepare(`
+    SELECT metadata_json FROM ai_conversations
+    WHERE user_id = ? AND product_id = ? AND ai_type = 'seller' AND role = 'assistant'
+    ORDER BY timestamp DESC, id DESC
+    LIMIT ?
+  `).bind(userId, productId, MAX_CONSECUTIVE_AUTOMATIC_PROMOTIONS).all();
+
+  let count = 0;
+  for (const message of results) {
+    if (!isAutomaticPromotion(message)) break;
+    count += 1;
+  }
+  return count;
+}
+
+function isAutomaticPromotion(message) {
+  try {
+    return JSON.parse(message.metadata_json || '{}').automaticPromotion === true;
+  } catch {
+    return false;
   }
 }
 

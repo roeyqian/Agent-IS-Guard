@@ -2044,6 +2044,7 @@ const comparisonOpen = ref(false);
 const promotionalDwellTimer = ref(null);
 const promotionalDwellProductId = ref('');
 const promotionalNudgeSending = ref(false);
+const promotionalNudgePausedProductIds = reactive(new Set());
 
 const adminConfig = ref(null);
 const adminStats = ref(null);
@@ -2732,6 +2733,7 @@ function schedulePromotionalDwellNudge(productId) {
   clearPromotionalDwellTimer();
   if (!token.value || isAdminUser.value) return;
   if (document.visibilityState === 'hidden') return;
+  if (promotionalNudgePausedProductIds.has(productId)) return;
 
   promotionalDwellProductId.value = productId;
   promotionalDwellTimer.value = window.setTimeout(() => {
@@ -2778,7 +2780,12 @@ async function triggerPromotionalDwellNudge(productId) {
 
     const thread = getAiThread('seller', conversationId);
     const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS, conversationId);
-    if (result.skipped) return;
+    if (result.skipped) {
+      if (result.reason === 'consecutive_automatic_promotions_limit') {
+        promotionalNudgePausedProductIds.add(productId);
+      }
+      return;
+    }
 
     void trackBehavior('view_product', {
       productId,
@@ -3961,6 +3968,9 @@ async function sendAiMessage() {
 
   try {
     const result = await AIAPI.chat(message, type, productId, conversationId, clientMessageId, { signal: controller.signal });
+    if (type === 'seller' && productId) {
+      promotionalNudgePausedProductIds.delete(productId);
+    }
     aiThreads[threadKey] = [
       ...getAiThread(type, conversationId),
       { role: 'assistant', content: result.response },
