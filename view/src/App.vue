@@ -52,7 +52,7 @@
           <Layers3 :size="16" />
           {{ t('common.games') }}
         </button>
-        <button class="nav-chip" type="button" @click="go('admin')">
+        <button v-if="isAdminUser" class="nav-chip" type="button" @click="go('admin')">
           <Settings2 :size="16" />
           {{ t('common.research') }}
         </button>
