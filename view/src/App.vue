@@ -131,7 +131,7 @@
 
         </div>
 
-        <div class="content-grid">
+        <div class="content-grid product-content-grid">
           <section class="panel catalog-panel">
             <div class="panel-head">
               <div>
@@ -187,6 +187,7 @@
                 :class="{ active: selectedProduct?.id === product.id }"
                 type="button"
                 @click="pickProduct(product.id)"
+                @dblclick="openProductPreview(product)"
               >
                 <div class="product-image-wrap">
                   <img
@@ -215,17 +216,42 @@
             </div>
           </section>
 
-          <aside class="panel detail-panel">
+          <div
+            v-if="productPreviewOpen && selectedProduct"
+            class="overlay product-preview-overlay"
+            @click.self="closeProductPreview"
+          >
+          <aside
+            class="drawer product-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="selectedProduct.name"
+          >
             <template v-if="selectedProduct">
               <div class="panel-head">
                 <div>
                   <h2>{{ selectedProduct.name }}</h2>
                   <p>{{ categoryName(selectedProduct.category_id) }}</p>
                 </div>
-                <button v-if="!isAdminUser" class="ghost-btn" type="button" @click="openAi('seller', selectedProduct)">
-                  <MessageSquareMore :size="16" />
-                  {{ t('detail.askSeller') }}
-                </button>
+                <div class="drawer-actions">
+                  <button
+                    v-if="!isAdminUser"
+                    class="ghost-btn"
+                    type="button"
+                    @click="openAi('seller', selectedProduct)"
+                  >
+                    <MessageSquareMore :size="16" />
+                    {{ t('detail.askSeller') }}
+                  </button>
+                  <button
+                    class="icon-close"
+                    type="button"
+                    :aria-label="t('common.close')"
+                    @click="closeProductPreview"
+                  >
+                    <X :size="18" />
+                  </button>
+                </div>
               </div>
 
               <div class="detail-image">
@@ -541,6 +567,7 @@
               <span>{{ t('detail.noSelectionBody') }}</span>
             </div>
           </aside>
+          </div>
         </div>
       </section>
 
@@ -1963,6 +1990,7 @@ const categories = ref([]);
 const cart = ref([]);
 const orders = ref([]);
 const selectedProductId = ref('');
+const productPreviewOpen = ref(false);
 const selectedOrderId = ref('');
 const selectedOrderDetail = ref(null);
 const selectedAdminOrderId = ref('');
@@ -2094,6 +2122,9 @@ const isDarkTheme = computed(() => theme.value === 'dark');
 watch(
   () => route.value.page,
   async (next) => {
+    if (next !== 'products') {
+      closeProductPreview();
+    }
     if (next !== 'products') {
       clearPromotionalDwellTimer();
     }
@@ -2660,6 +2691,15 @@ function pickProduct(id) {
   }
 }
 
+function openProductPreview(product) {
+  pickProduct(product.id);
+  productPreviewOpen.value = true;
+}
+
+function closeProductPreview() {
+  productPreviewOpen.value = false;
+}
+
 function schedulePromotionalDwellNudge(productId) {
   clearPromotionalDwellTimer();
   if (!token.value || isAdminUser.value) return;
@@ -3036,6 +3076,10 @@ function isDinoCollision() {
 }
 
 function handleGameKeydown(event) {
+  if (event.key === 'Escape' && productPreviewOpen.value) {
+    closeProductPreview();
+    return;
+  }
   if (page.value !== 'games') return;
   if (activeGame.value === 'dino' && (event.code === 'Space' || event.code === 'ArrowUp')) {
     event.preventDefault();

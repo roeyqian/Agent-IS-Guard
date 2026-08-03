@@ -628,6 +628,10 @@ img {
   align-items: start;
 }
 
+.product-content-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .panel,
 .empty-panel {
   position: relative;
@@ -845,6 +849,27 @@ img {
   position: sticky;
   top: 88px;
   overflow: hidden;
+}
+
+.overlay.product-preview-overlay {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.drawer.product-preview-modal {
+  display: block;
+  width: min(1040px, 72vw);
+  height: 100%;
+  max-height: none;
+  overflow: auto;
+  border-right: 1px solid var(--line);
+  border-left: 0;
+}
+
+.drawer.product-preview-modal .detail-image {
+  width: min(840px, 100%);
+  margin-right: auto;
+  margin-left: auto;
 }
 
 .detail-image {
