@@ -2249,6 +2249,9 @@ const categoryOptions = computed(() =>
 const filteredProducts = computed(() => {
   const query = filters.q.trim().toLowerCase();
   const category = filters.category;
+  const categoryOrder = new Map(
+    categories.value.map((item, index) => [String(item.id || item.name || ''), index]),
+  );
   const items = products.value.filter((product) => {
     const matchesCategory = !category || String(product.category_id || '') === String(category);
     const haystack = [
@@ -2278,6 +2281,15 @@ const filteredProducts = computed(() => {
     if (filters.sort === 'newest') {
       return String(b.id).localeCompare(String(a.id));
     }
+    const aCategory = String(a.category_id || '');
+    const bCategory = String(b.category_id || '');
+    const categoryDifference = (categoryOrder.get(aCategory) ?? Number.MAX_SAFE_INTEGER)
+      - (categoryOrder.get(bCategory) ?? Number.MAX_SAFE_INTEGER);
+    if (categoryDifference) return categoryDifference;
+
+    const categoryNameDifference = aCategory.localeCompare(bCategory);
+    if (categoryNameDifference) return categoryNameDifference;
+
     return Number(b.rating || 0) - Number(a.rating || 0) || Number(b.sales || 0) - Number(a.sales || 0);
   });
 });
