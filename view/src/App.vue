@@ -301,6 +301,13 @@
                 {{ selectedProduct.description || selectedProduct.subtitle || t('detail.noDescription') }}
               </p>
 
+              <div v-if="!isAdminUser" class="detail-actions">
+                <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
+                  <ShoppingCart :size="16" />
+                  {{ t('detail.addToCart') }}
+                </button>
+              </div>
+
               <div v-if="!isAdminUser" class="buymate-live-panel" :class="{ active: rationalModeEnabled }">
                 <div class="panel-head compact-head">
                   <div>
@@ -477,21 +484,6 @@
                     <span>{{ game.body }}</span>
                   </button>
                 </div>
-              </div>
-
-              <div v-if="!isAdminUser" class="detail-actions">
-                <button class="primary-btn" type="button" @click="addToCart(selectedProduct)">
-                  <ShoppingCart :size="16" />
-                  {{ t('detail.addToCart') }}
-                </button>
-                <button class="secondary-btn" type="button" @click="openAi('guardian', selectedProduct)">
-                  <ShieldCheck :size="16" />
-                  {{ t('detail.guardianAdvice') }}
-                </button>
-                <button class="secondary-btn" type="button" @click="setPage('checkout')">
-                  <ClipboardCheck :size="16" />
-                  {{ t('detail.enterDecision') }}
-                </button>
               </div>
 
               <div v-else class="detail-actions">
