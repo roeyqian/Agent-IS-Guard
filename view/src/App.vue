@@ -532,36 +532,6 @@
                     </span>
                   </div>
 
-                  <div v-if="productInsightRecentBehaviors.length" class="timeline compact">
-                    <div class="timeline-head">
-                      <strong>{{ t('insights.recentBehaviors') }}</strong>
-                      <span>{{ t('common.recordsCount', { count: productInsightRecentBehaviors.length }) }}</span>
-                    </div>
-                    <div v-for="item in productInsightRecentBehaviors" :key="`${item.timestamp}-${item.session_id}`" class="timeline-row">
-                      <div class="timeline-dot"></div>
-                      <div class="timeline-copy">
-                        <strong>{{ behaviorLabel(item.behavior_type) }}</strong>
-                        <span>{{ item.username || item.session_id }}</span>
-                      </div>
-                      <small>{{ item.timestamp }}</small>
-                    </div>
-                  </div>
-
-                  <div v-if="productInsightRelated.length" class="related-list">
-                    <button
-                      v-for="item in productInsightRelated"
-                      :key="item.id"
-                      class="related-row"
-                      type="button"
-                      @click="pickProduct(item.id)"
-                    >
-                      <div>
-                        <strong>{{ item.name }}</strong>
-                        <span>{{ formatMoney(item.price) }}</span>
-                      </div>
-                      <ChevronRight :size="16" />
-                    </button>
-                  </div>
                 </template>
               </div>
             </template>
@@ -2299,8 +2269,6 @@ const adminStatCards = computed(() => [
   { label: t('hero.behaviors'), value: adminStats.value?.total_behaviors ?? 0 },
 ]);
 const productInsightSummary = computed(() => productInsights.value?.summary || null);
-const productInsightRecentBehaviors = computed(() => productInsights.value?.recentBehaviors || []);
-const productInsightRelated = computed(() => productInsights.value?.relatedProducts || []);
 const researchTotals = computed(() => researchSummary.value?.totals || {});
 const researchTopProducts = computed(() => researchSummary.value?.topProducts || []);
 const researchDailyBehavior = computed(() => researchSummary.value?.dailyBehavior || []);

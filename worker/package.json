@@ -12,7 +12,8 @@
     "db:i18n": "wrangler d1 execute zero-1-base --file=src/migrations/0004_product_i18n.sql --remote",
     "db:interventions": "wrangler d1 execute zero-1-base --file=src/migrations/0006_intervention_behavior.sql --remote",
     "db:ai-safety": "wrangler d1 execute zero-1-base --file=src/migrations/0007_ai_conversation_safety.sql --remote",
-    "db:product-chat-history": "wrangler d1 execute zero-1-base --file=src/migrations/0008_product_chat_history.sql --remote"
+    "db:product-chat-history": "wrangler d1 execute zero-1-base --file=src/migrations/0008_product_chat_history.sql --remote",
+    "db:add-products": "wrangler d1 execute zero-1-base --file=src/migrations/0009_add_more_products.sql --remote"
   },
   "devDependencies": {
     "wrangler": "^4.114.0"
