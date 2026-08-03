@@ -129,6 +129,11 @@ body {
   letter-spacing: 0;
 }
 
+body.modal-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 button,
 input,
 select,
@@ -862,8 +867,31 @@ img {
   height: 100%;
   max-height: none;
   overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   border-right: 1px solid var(--line);
   border-left: 0;
+}
+
+.overlay.ai-product-companion {
+  z-index: 50;
+  background: transparent;
+  pointer-events: none;
+}
+
+.ai-product-companion .ai-drawer {
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+
+@media (min-width: 721px) {
+  .product-preview-overlay.with-ai-companion .product-preview-modal {
+    width: min(1040px, 54vw);
+  }
+
+  .ai-product-companion .ai-drawer {
+    width: min(560px, 46vw);
+  }
 }
 
 .detail-visual-summary {
@@ -2388,6 +2416,7 @@ img {
   display: flex;
   justify-content: flex-end;
   background: var(--overlay-bg);
+  overscroll-behavior: none;
   animation: fadeIn var(--motion-med) var(--ease-out) both;
 }
 
@@ -2401,6 +2430,7 @@ img {
   background: var(--surface);
   box-shadow: var(--shadow);
   border-left: 1px solid var(--line);
+  overscroll-behavior: contain;
   animation: drawerSlide var(--motion-med) var(--ease-out) both;
 }
 
@@ -2419,6 +2449,7 @@ img {
 .drawer-body {
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   display: grid;
   gap: 12px;
 }

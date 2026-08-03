@@ -219,13 +219,16 @@
           <div
             v-if="productPreviewOpen && selectedProduct"
             class="overlay product-preview-overlay"
+            :class="{ 'with-ai-companion': aiOpen }"
             @click.self="closeProductPreview"
           >
           <aside
+            ref="productPreviewDialog"
             class="drawer product-preview-modal"
             role="dialog"
-            aria-modal="true"
+            :aria-modal="!aiOpen"
             :aria-label="selectedProduct.name"
+            tabindex="-1"
           >
             <template v-if="selectedProduct">
               <div class="panel-head">
@@ -1380,8 +1383,13 @@
       </aside>
     </div>
 
-    <div v-if="aiOpen && !isAdminUser" class="overlay" @click.self="closeAi">
-      <aside class="drawer ai-drawer">
+    <div
+      v-if="aiOpen && !isAdminUser"
+      class="overlay"
+      :class="{ 'ai-product-companion': productPreviewOpen }"
+      @click.self="closeAi"
+    >
+      <aside class="drawer ai-drawer" role="dialog" aria-modal="true" :aria-label="activeAiTitle">
         <div class="drawer-head ai-head">
           <div class="ai-title-block">
             <span class="ai-avatar" :class="aiType">
@@ -2036,6 +2044,7 @@ const aiAbortController = ref(null);
 const aiConversationId = ref('');
 const aiMessagesEl = ref(null);
 const aiInputEl = ref(null);
+const productPreviewDialog = ref(null);
 const aiThreads = reactive({});
 const rationalModeEnabled = ref(true);
 const activePitchIndex = ref(0);
@@ -2525,6 +2534,9 @@ const pressureLevel = computed(() => {
 });
 const pressureLevelLabel = computed(() => pressureLevelName(pressureLevel.value));
 const pressureRecommendation = computed(() => t(`pressure.recommendation.${pressureLevel.value}`));
+const isOverlayOpen = computed(
+  () => productPreviewOpen.value || cartOpen.value || aiOpen.value || pressureOpen.value || authOpen.value,
+);
 
 watch(
   locale,
@@ -2546,6 +2558,14 @@ watch(
   { immediate: true },
 );
 
+watch(
+  isOverlayOpen,
+  (isOpen) => {
+    document.body.classList.toggle('modal-open', isOpen);
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
   window.addEventListener('hashchange', syncRoute);
   document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -2560,6 +2580,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', syncRoute);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.removeEventListener('keydown', handleGameKeydown);
+  document.body.classList.remove('modal-open');
   clearPromotionalDwellTimer();
   stopDino();
 });
@@ -2696,6 +2717,7 @@ function pickProduct(id) {
 function openProductPreview(product) {
   pickProduct(product.id);
   productPreviewOpen.value = true;
+  void nextTick(() => productPreviewDialog.value?.focus());
 }
 
 function closeProductPreview() {
@@ -2829,6 +2851,9 @@ function openAi(type = 'seller', product = selectedProduct.value) {
 function closeAi() {
   stopAiGeneration();
   aiOpen.value = false;
+  if (productPreviewOpen.value) {
+    void nextTick(() => productPreviewDialog.value?.focus());
+  }
 }
 
 function switchAi(type) {
@@ -3078,9 +3103,15 @@ function isDinoCollision() {
 }
 
 function handleGameKeydown(event) {
-  if (event.key === 'Escape' && productPreviewOpen.value) {
-    closeProductPreview();
-    return;
+  if (event.key === 'Escape') {
+    if (aiOpen.value) {
+      closeAi();
+      return;
+    }
+    if (productPreviewOpen.value) {
+      closeProductPreview();
+      return;
+    }
   }
   if (page.value !== 'games') return;
   if (activeGame.value === 'dino' && (event.code === 'Space' || event.code === 'ArrowUp')) {
