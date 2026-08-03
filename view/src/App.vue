@@ -254,15 +254,36 @@
                 </div>
               </div>
 
-              <div class="detail-image">
-                <img
-                  v-if="productImage(selectedProduct)"
-                  :src="productImage(selectedProduct)"
-                  :alt="selectedProduct.name"
-                />
-                <div v-else class="image-fallback tall">
-                  <Layers3 :size="28" />
-                  <span>{{ selectedProduct.name }}</span>
+              <div class="detail-visual-summary">
+                <div class="detail-image">
+                  <img
+                    v-if="productImage(selectedProduct)"
+                    :src="productImage(selectedProduct)"
+                    :alt="selectedProduct.name"
+                  />
+                  <div v-else class="image-fallback tall">
+                    <Layers3 :size="28" />
+                    <span>{{ selectedProduct.name }}</span>
+                  </div>
+                </div>
+
+                <div class="detail-metrics">
+                  <div>
+                    <label>{{ t('detail.rating') }}</label>
+                    <strong>{{ Number(selectedProduct.rating || 0).toFixed(1) }}</strong>
+                  </div>
+                  <div>
+                    <label>{{ t('detail.stock') }}</label>
+                    <strong>{{ Number(selectedProduct.stock || 0) }}</strong>
+                  </div>
+                  <div>
+                    <label>{{ t('detail.sales') }}</label>
+                    <strong>{{ Number(selectedProduct.sales || 0) }}</strong>
+                  </div>
+                  <div>
+                    <label>{{ t('common.category') }}</label>
+                    <strong>{{ categoryName(selectedProduct.category_id) }}</strong>
+                  </div>
                 </div>
               </div>
 
@@ -271,25 +292,6 @@
                 <span v-if="selectedProduct.original_price">
                   {{ formatMoney(selectedProduct.original_price) }}
                 </span>
-              </div>
-
-              <div class="detail-metrics">
-                <div>
-                  <label>{{ t('detail.rating') }}</label>
-                  <strong>{{ Number(selectedProduct.rating || 0).toFixed(1) }}</strong>
-                </div>
-                <div>
-                  <label>{{ t('detail.stock') }}</label>
-                  <strong>{{ Number(selectedProduct.stock || 0) }}</strong>
-                </div>
-                <div>
-                  <label>{{ t('detail.sales') }}</label>
-                  <strong>{{ Number(selectedProduct.sales || 0) }}</strong>
-                </div>
-                <div>
-                  <label>{{ t('common.category') }}</label>
-                  <strong>{{ categoryName(selectedProduct.category_id) }}</strong>
-                </div>
               </div>
 
               <p class="detail-text">

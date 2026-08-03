@@ -866,10 +866,23 @@ img {
   border-left: 0;
 }
 
+.detail-visual-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 620px) minmax(180px, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
 .drawer.product-preview-modal .detail-image {
-  width: min(840px, 100%);
-  margin-right: auto;
-  margin-left: auto;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+.drawer.product-preview-modal .detail-metrics {
+  grid-template-columns: 1fr;
+  align-content: start;
+  margin: 0;
 }
 
 .detail-image {
@@ -3109,6 +3122,10 @@ textarea:focus-visible {
   .game-launch-grid,
   .pressure-cue-grid,
   .klotski-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-visual-summary {
     grid-template-columns: 1fr;
   }
 
