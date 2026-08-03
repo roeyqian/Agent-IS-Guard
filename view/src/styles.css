@@ -2369,6 +2369,7 @@ img {
 
 .auth-form {
   margin-top: 12px;
+  align-content: start;
 }
 
 .form-actions {
@@ -2444,6 +2445,7 @@ img {
 
 .auth-drawer {
   width: min(420px, calc(100vw - 18px));
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .drawer-body {
