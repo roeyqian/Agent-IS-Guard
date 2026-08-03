@@ -2769,7 +2769,6 @@ async function triggerPromotionalDwellNudge(productId) {
   aiType.value = 'seller';
   aiProductId.value = productId;
   aiConversationId.value = getAiConversationId('seller', productId);
-  aiOpen.value = true;
   aiSending.value = true;
   const conversationId = aiConversationId.value;
 
@@ -2797,6 +2796,7 @@ async function triggerPromotionalDwellNudge(productId) {
       },
     ];
     await nextTick();
+    aiOpen.value = true;
   } catch (error) {
     if (error.status === 401) {
       openAuth('login');
