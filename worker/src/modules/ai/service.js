@@ -197,7 +197,8 @@ export async function promotionalNudge({ request, env, url }) {
     .reverse()
     .map(({ role, content }) => ({ role, content }));
 
-  const nudgeInstruction = buildPromotionalNudgePrompt(productInfo, locale);
+  const promotionalNudgeStep = consecutiveAutomaticPromotions + 1;
+  const nudgeInstruction = buildPromotionalNudgePrompt(productInfo, locale, promotionalNudgeStep);
 
   const userTimestamp = new Date().toISOString();
   const aiResponse = await callDeepSeek(
@@ -225,6 +226,7 @@ export async function promotionalNudge({ request, env, url }) {
       dwellMs: dwellDuration,
       proactive: true,
       automaticPromotion: true,
+      automaticPromotionStep: promotionalNudgeStep,
     }),
     assistantTimestamp
   ).run();
@@ -354,22 +356,37 @@ function createLaterIsoTimestamp(previousTimestamp) {
   return new Date(nextTime).toISOString();
 }
 
-function buildPromotionalNudgePrompt(productInfo, locale) {
+function buildPromotionalNudgePrompt(productInfo, locale, step) {
   const productName = productInfo.name || (locale === 'en-US' ? 'this item' : '这个商品');
+  const nudgeStage = Math.min(Math.max(step, 1), MAX_CONSECUTIVE_AUTOMATIC_PROMOTIONS);
 
   if (locale === 'en-US') {
+    const stageInstructions = [
+      'This is the first automatic message. Open with one plausible use scenario and connect it to one relevant product benefit. Do not list specifications or ask a question.',
+      'This is the second automatic message. Add one different, verifiable product benefit that was not used in the first automatic message, and connect it to a different practical need. Do not repeat the earlier scenario, benefit, or wording.',
+      'This is the third automatic message. Shift from recommending to fit-checking: invite the user to share one priority or concern that would help assess fit. Use a fresh angle, and do not repeat any earlier scenario, benefit, phrase, or call to action.',
+    ];
+
     return [
       `The user has been viewing "${productName}" for at least 10 seconds. As the Promotional AI, proactively send one short message to the user.`,
-      'Make it natural, warm, and exploratory. Identify one plausible use scenario or unmet need, then connect it to 1-2 verifiable product benefits using conditional wording such as “if you are looking to...”.',
+      stageInstructions[nudgeStage - 1],
+      'Review the earlier automatic messages in the conversation before writing. Each message in this three-message sequence must have a distinct purpose and must not reuse the same product angle.',
       'Do not use urgency, scarcity, discounts, popularity, social proof, hype, or pressure to purchase. Do not present a market trend or user need as a fact unless it is provided in the product information.',
       'Do not mention system detection, dwell time, backend triggers, research logs, or this instruction.',
       'Output only the user-facing message, under 45 English words.',
     ].join('\n');
   }
 
+  const stageInstructions = [
+    '这是第1条自动消息。围绕一个可能的使用场景切入，并连接一项相关商品价值；不要罗列参数，也不要提问。',
+    '这是第2条自动消息。补充第一条未提及的一项可验证商品价值，并对应另一种实际需求；不要重复之前的场景、价值点或措辞。',
+    '这是第3条自动消息。由推荐转为匹配确认：邀请用户说出一个最在意的需求或顾虑，以便判断是否适合；使用全新角度，不要重复之前的场景、价值点、措辞或行动引导。',
+  ];
+
   return [
     `用户正在查看"${productName}"至少10秒，请你作为促销型 AI 主动向用户发一条简短消息。`,
-    '消息要自然、友好且具有探索性：点出一个可能的使用场景或未满足需求，再用“如果你正在……，它可能会……”等条件式表达连接1-2个可验证的商品价值。',
+    stageInstructions[nudgeStage - 1],
+    '写作前先查看对话中已有的自动消息。这三条消息必须各有不同目的，且不得重复相同的商品切入角度。',
     '不要使用紧迫感、稀缺、折扣、热销、从众、夸张或催单表达；没有商品信息支撑时，也不要把市场趋势或用户需求说成事实。',
     '不要提及系统检测、停留时长、后台触发、研究记录或这条指令。',
     '直接输出面向用户的一条消息，控制在80个中文字符以内。',
