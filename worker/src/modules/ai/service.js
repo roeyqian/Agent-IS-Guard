@@ -1,5 +1,5 @@
 import { json, readJsonBody, requireStandardUser, createId } from "../../app/http.js";
-import { callDeepSeek } from "./deepseek.js";
+import { streamDeepSeek } from "./deepseek.js";
 import { getSellerPrompt } from "./seller.js";
 import { getGuardianPrompt } from "./guardian.js";
 import { getLocaleFromRequest, normalizeProduct } from "../shop/utils.js";
@@ -37,7 +37,7 @@ export async function chat({ request, env, url }) {
   }
 
   const duplicate = await findIdempotentResponse(env, session.userId, clientMessageId);
-  if (duplicate.response) return json({ response: duplicate.response, aiType, idempotent: true });
+  if (duplicate.hasAssistant) return streamStoredResponse(duplicate.response, aiType);
   if (duplicate.pending) throw { status: 409, message: 'AI request is still being processed' };
 
   await enforceAiRateLimit(env, session.userId);
@@ -93,30 +93,40 @@ export async function chat({ request, env, url }) {
     userTimestamp
   ).run().catch(async (error) => {
     const existing = await findIdempotentResponse(env, session.userId, clientMessageId);
-    if (existing.response) return { duplicateResponse: existing.response };
+    if (existing.hasAssistant) return { duplicateResponse: existing.response };
     if (existing.pending) return { duplicatePending: true };
     throw error;
   });
 
-  if (reservation?.duplicateResponse) {
-    return json({ response: reservation.duplicateResponse, aiType, idempotent: true });
+  if (reservation?.duplicateResponse !== undefined) {
+    return streamStoredResponse(reservation.duplicateResponse, aiType);
   }
   if (reservation?.duplicatePending) {
     throw { status: 409, message: 'AI request is still being processed' };
   }
 
-  let aiResponse;
-  try {
-    aiResponse = await callDeepSeek(config, systemPrompt, messages, message, { signal: request.signal });
-  } catch (error) {
-    await env.db.prepare('DELETE FROM ai_conversations WHERE user_id = ? AND client_message_id = ?')
-      .bind(session.userId, clientMessageId)
-      .run();
-    throw error;
-  }
-  const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
+  return streamAiResponse(async (sendDelta) => {
+    let result;
+    try {
+      result = await getStreamedAiResponse({
+        config,
+        systemPrompt,
+        messages,
+        userMessage: message,
+        locale,
+        request,
+        sendDelta,
+      });
+    } catch (error) {
+      if (error?.status === 499) {
+        await env.db.prepare('DELETE FROM ai_conversations WHERE user_id = ? AND client_message_id = ?')
+          .bind(session.userId, clientMessageId)
+          .run();
+      }
+      throw error;
+    }
+    const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
 
-  try {
     await env.db.prepare(`
       INSERT INTO ai_conversations (id, user_id, session_id, conversation_id, reply_to_message_id, ai_type, role, content, product_id, metadata_json, timestamp)
       VALUES (?, ?, ?, ?, ?, ?, 'assistant', ?, ?, ?, ?)
@@ -127,19 +137,18 @@ export async function chat({ request, env, url }) {
       conversationId,
       clientMessageId,
       aiType,
-      aiResponse,
+      result.content,
       productId || null,
-      JSON.stringify({ model: config.deepseek_model || 'deepseek-chat' }),
-      assistantTimestamp
+      JSON.stringify({
+        model: config.deepseek_model || 'deepseek-chat',
+        finishReason: result.finishReason || null,
+        providerError: result.providerError || null,
+      }),
+      assistantTimestamp,
     ).run();
-  } catch (error) {
-    await env.db.prepare('DELETE FROM ai_conversations WHERE user_id = ? AND client_message_id = ?')
-      .bind(session.userId, clientMessageId)
-      .run();
-    throw error;
-  }
 
-  return json({ response: aiResponse, aiType });
+    return { response: result.content, aiType, providerError: result.providerError || null };
+  });
 }
 
 export async function promotionalNudge({ request, env, url }) {
@@ -185,11 +194,11 @@ export async function promotionalNudge({ request, env, url }) {
     productId,
   );
   if (consecutiveAutomaticPromotions >= MAX_CONSECUTIVE_AUTOMATIC_PROMOTIONS) {
-    return json({
+    return streamAiResponse(async () => ({
       skipped: true,
       reason: 'consecutive_automatic_promotions_limit',
       aiType: 'seller',
-    });
+    }));
   }
 
   const messages = history
@@ -200,38 +209,119 @@ export async function promotionalNudge({ request, env, url }) {
   const promotionalNudgeStep = consecutiveAutomaticPromotions + 1;
   const nudgeInstruction = buildPromotionalNudgePrompt(productInfo, locale, promotionalNudgeStep);
 
-  const userTimestamp = new Date().toISOString();
-  const aiResponse = await callDeepSeek(
-    config,
-    `${getSellerPrompt(productInfo, locale)}\n\n${nudgeInstruction}`,
-    messages,
-    locale === 'en-US' ? 'Please send the proactive message now.' : '请现在发送这条主动消息。',
-    { signal: request.signal },
-  );
-  const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
-  const messageRecordId = createId("conv");
-  await env.db.prepare(`
-    INSERT INTO ai_conversations (id, user_id, session_id, conversation_id, ai_type, role, content, product_id, metadata_json, timestamp)
-    VALUES (?, ?, ?, ?, 'seller', 'assistant', ?, ?, ?, ?)
-  `).bind(
-    `${messageRecordId}_a`,
-    session.userId,
-    token,
-    conversationId,
-    aiResponse,
-    productId,
-    JSON.stringify({
-      model: config.deepseek_model || 'deepseek-chat',
-      source: source || 'product-dwell',
-      dwellMs: dwellDuration,
-      proactive: true,
-      automaticPromotion: true,
-      automaticPromotionStep: promotionalNudgeStep,
-    }),
-    assistantTimestamp
-  ).run();
+  return streamAiResponse(async (sendDelta) => {
+    const userTimestamp = new Date().toISOString();
+    const result = await getStreamedAiResponse({
+      config,
+      systemPrompt: `${getSellerPrompt(productInfo, locale)}\n\n${nudgeInstruction}`,
+      messages,
+      userMessage: locale === 'en-US' ? 'Please send the proactive message now.' : '请现在发送这条主动消息。',
+      locale,
+      request,
+      sendDelta,
+    });
+    const assistantTimestamp = createLaterIsoTimestamp(userTimestamp);
+    const messageRecordId = createId("conv");
+    await env.db.prepare(`
+      INSERT INTO ai_conversations (id, user_id, session_id, conversation_id, ai_type, role, content, product_id, metadata_json, timestamp)
+      VALUES (?, ?, ?, ?, 'seller', 'assistant', ?, ?, ?, ?)
+    `).bind(
+      `${messageRecordId}_a`,
+      session.userId,
+      token,
+      conversationId,
+      result.content,
+      productId,
+      JSON.stringify({
+        model: config.deepseek_model || 'deepseek-chat',
+        source: source || 'product-dwell',
+        dwellMs: dwellDuration,
+        proactive: true,
+        automaticPromotion: true,
+        automaticPromotionStep: promotionalNudgeStep,
+        finishReason: result.finishReason || null,
+        providerError: result.providerError || null,
+      }),
+      assistantTimestamp,
+    ).run();
 
-  return json({ response: aiResponse, aiType: 'seller' });
+    return { response: result.content, aiType: 'seller', providerError: result.providerError || null };
+  });
+}
+
+function streamStoredResponse(response, aiType) {
+  const content = String(response || '');
+  return streamAiResponse(async (sendDelta) => {
+    if (content) sendDelta(content);
+    return { response: content, aiType, idempotent: true };
+  });
+}
+
+function streamAiResponse(producer) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event, payload) => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+      };
+      try {
+        const result = await producer((content) => send('delta', { content }));
+        send('done', result);
+      } catch (error) {
+        send('error', { message: getStreamErrorMessage(error) });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      'connection': 'keep-alive',
+      'x-accel-buffering': 'no',
+    },
+  });
+}
+
+async function getStreamedAiResponse({ config, systemPrompt, messages, userMessage, locale, request, sendDelta }) {
+  try {
+    const result = await streamDeepSeek(config, systemPrompt, messages, userMessage, {
+      signal: request.signal,
+      onDelta: sendDelta,
+    });
+    return { content: result.content, finishReason: result.finishReason, providerError: null };
+  } catch (error) {
+    if (error?.status === 499) throw error;
+
+    const content = formatProviderFailure(locale, error);
+    sendDelta(content);
+    return {
+      content,
+      finishReason: null,
+      providerError: getStreamErrorMessage(error),
+    };
+  }
+}
+
+function formatProviderFailure(locale, error) {
+  const errorMessage = getStreamErrorMessage(error);
+  if (locale === 'en-US') {
+    return error?.httpError
+      ? `AI request failed after 3 HTTP retries: ${errorMessage}`
+      : `AI request failed: ${errorMessage}`;
+  }
+  return error?.httpError
+    ? `AI 请求在 3 次 HTTP 重试后仍失败：${errorMessage}`
+    : `AI 请求失败：${errorMessage}`;
+}
+
+function getStreamErrorMessage(error) {
+  return String(error?.message || error || 'AI service error')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]')
+    .replace(/(api[_-]?key\s*[:=]\s*)[^\s,;]+/gi, '$1[redacted]')
+    .slice(0, 500);
 }
 
 export async function getHistory({ request, env, url }) {
@@ -251,7 +341,9 @@ export async function getHistory({ request, env, url }) {
 
   const { results } = await env.db.prepare(query).bind(...params).all();
 
-  return json({ history: results.filter((item) => !isHiddenConversation(item)) });
+  return json({
+    history: results.filter((item) => !isHiddenConversation(item) && String(item.content || '').trim()),
+  });
 }
 
 export async function clearHistory({ request, env, url }) {
@@ -293,7 +385,7 @@ async function findIdempotentResponse(env, userId, clientMessageId) {
     WHERE user_id = ? AND client_message_id = ?
   `).bind(userId, clientMessageId).first();
 
-  if (!userMessage) return { pending: false, response: '' };
+  if (!userMessage) return { pending: false, hasAssistant: false, response: '' };
 
   const assistantMessage = await env.db.prepare(`
     SELECT content FROM ai_conversations
@@ -301,7 +393,11 @@ async function findIdempotentResponse(env, userId, clientMessageId) {
     LIMIT 1
   `).bind(userId, clientMessageId).first();
 
-  return { pending: !assistantMessage, response: assistantMessage?.content || '' };
+  return {
+    pending: !assistantMessage,
+    hasAssistant: Boolean(assistantMessage),
+    response: String(assistantMessage?.content || ''),
+  };
 }
 
 async function enforceAiRateLimit(env, userId) {
@@ -334,7 +430,8 @@ async function getConsecutiveAutomaticPromotions(env, userId, productId) {
 
 function isAutomaticPromotion(message) {
   try {
-    return JSON.parse(message.metadata_json || '{}').automaticPromotion === true;
+    const metadata = JSON.parse(message.metadata_json || '{}');
+    return metadata.automaticPromotion === true && !metadata.providerError;
   } catch {
     return false;
   }

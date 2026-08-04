@@ -1512,14 +1512,19 @@
                   {{ message.role === 'user' ? t('ai.you') : activeAiTitle }}
                 </span>
                 <div
-                  v-if="message.role === 'assistant'"
+                  v-if="message.role === 'assistant' && (!message.streaming || message.content)"
                   class="chat-bubble markdown-body"
                   v-html="renderMarkdown(message.content)"
                 ></div>
+                <div v-else-if="message.role === 'assistant'" class="typing-bubble" :aria-label="t('ai.thinking')">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
                 <div v-else class="chat-bubble">{{ message.content }}</div>
               </div>
             </div>
-            <div v-if="aiSending" class="chat-row assistant">
+            <div v-if="aiSending && !activeAiMessages.some((message) => message.streaming)" class="chat-row assistant">
               <span class="chat-avatar">
                 <Bot :size="16" />
               </span>
@@ -2773,14 +2778,36 @@ async function triggerPromotionalDwellNudge(productId) {
   aiConversationId.value = getAiConversationId('seller', productId);
   aiSending.value = true;
   const conversationId = aiConversationId.value;
+  const threadKey = aiThreadKey('seller', conversationId);
+  let streamMessageIndex = -1;
+
+  const ensureStreamMessage = () => {
+    if (streamMessageIndex < 0) {
+      aiThreads[threadKey] = [
+        ...getAiThread('seller', conversationId),
+        { role: 'assistant', content: '', streaming: true, product_id: productId },
+      ];
+      streamMessageIndex = getAiThread('seller', conversationId).length - 1;
+    }
+  };
+  const appendStreamDelta = (content) => {
+    if (!content) return;
+    ensureStreamMessage();
+    getAiThread('seller', conversationId)[streamMessageIndex].content += content;
+  };
 
   try {
     await loadAiHistory('seller', conversationId);
     if (selectedProductId.value !== productId || page.value !== 'products' || document.visibilityState === 'hidden') return;
 
-    const thread = getAiThread('seller', conversationId);
-    const result = await AIAPI.promotionalNudge(productId, PROMOTIONAL_DWELL_MS, conversationId);
+    ensureStreamMessage();
+    const result = await AIAPI.promotionalNudgeStream(productId, PROMOTIONAL_DWELL_MS, conversationId, {
+      onDelta: appendStreamDelta,
+    });
     if (result.skipped) {
+      if (streamMessageIndex >= 0) {
+        aiThreads[threadKey] = getAiThread('seller', conversationId).filter((_, index) => index !== streamMessageIndex);
+      }
       if (result.reason === 'consecutive_automatic_promotions_limit') {
         promotionalNudgePausedProductIds.add(productId);
       }
@@ -2794,14 +2821,12 @@ async function triggerPromotionalDwellNudge(productId) {
       trigger: 'promotional_ai',
     });
 
-    aiThreads[aiThreadKey('seller', conversationId)] = [
-      ...thread,
-      {
-        role: 'assistant',
-        content: result.response,
-        product_id: productId,
-      },
-    ];
+    if (streamMessageIndex < 0) appendStreamDelta(String(result.response || ''));
+    if (streamMessageIndex >= 0) {
+      const streamedMessage = getAiThread('seller', conversationId)[streamMessageIndex];
+      streamedMessage.content = String(result.response || streamedMessage.content);
+      streamedMessage.streaming = false;
+    }
     await nextTick();
     aiOpen.value = true;
   } catch (error) {
@@ -3958,6 +3983,18 @@ async function sendAiMessage() {
     ...getAiThread(type, conversationId),
     { role: 'user', content: message, client_message_id: clientMessageId },
   ];
+  let streamMessageIndex = -1;
+  const appendStreamDelta = (content) => {
+    if (!content) return;
+    if (streamMessageIndex < 0) {
+      aiThreads[threadKey] = [
+        ...getAiThread(type, conversationId),
+        { role: 'assistant', content: '', streaming: true },
+      ];
+      streamMessageIndex = getAiThread(type, conversationId).length - 1;
+    }
+    getAiThread(type, conversationId)[streamMessageIndex].content += content;
+  };
   const controller = new AbortController();
   aiAbortController.value = controller;
   void trackBehavior('chat_ai', {
@@ -3967,14 +4004,19 @@ async function sendAiMessage() {
   });
 
   try {
-    const result = await AIAPI.chat(message, type, productId, conversationId, clientMessageId, { signal: controller.signal });
+    const result = await AIAPI.chatStream(message, type, productId, conversationId, clientMessageId, {
+      signal: controller.signal,
+      onDelta: appendStreamDelta,
+    });
     if (type === 'seller' && productId) {
       promotionalNudgePausedProductIds.delete(productId);
     }
-    aiThreads[threadKey] = [
-      ...getAiThread(type, conversationId),
-      { role: 'assistant', content: result.response },
-    ];
+    if (streamMessageIndex < 0) appendStreamDelta(String(result.response || ''));
+    if (streamMessageIndex >= 0) {
+      const streamedMessage = getAiThread(type, conversationId)[streamMessageIndex];
+      streamedMessage.content = String(result.response || streamedMessage.content);
+      streamedMessage.streaming = false;
+    }
     await nextTick();
   } catch (error) {
     if (error.name === 'AbortError' || error.status === 499) {
