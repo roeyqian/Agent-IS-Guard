@@ -1,78 +1,110 @@
-# ShopGuard / BuyMate Open Prototype
+# ShopGuard
 
-ShopGuard 是一个基于 Cloudflare Workers + D1 的消费决策研究平台，目标是开源实现并扩展 ACM CHI 2026 论文《BuyMate: Making AI Interventions Effective in Promoting Rational Consumption in Live Commerce》的研究原型方向。前端静态页面位于 `view/`，后端 API 位于 `worker/src/`。
+> 受 ACM CHI 2026 论文 [BuyMate: Making AI Interventions Effective in Promoting Rational Consumption in Live Commerce](https://doi.org/10.1145/3772318.3790928) 启发的电商 AI 干预研究平台。
 
-ShopGuard is a consumer-decision research platform built on Cloudflare Workers and D1. It aims to provide an open-source prototype inspired by the ACM CHI 2026 paper "BuyMate: Making AI Interventions Effective in Promoting Rational Consumption in Live Commerce". The static frontend lives in `view/`, and the backend API lives in `worker/src/`.
+ShopGuard 将直播电商中的高刺激购买场景转化为可运行、可记录的 Web 实验环境。它关注的不是替用户决定“该不该买”，而是在限时、稀缺、从众和价格锚定等压力出现时，为用户提供暂停、核验、比较和反思的机会。
 
-> 说明：本项目是研究原型与工程复现，不声称包含论文的全部实验材料、参与者流程或量表。仓库重点提供可运行的直播电商式决策环境、AI 干预界面、行为记录和研究后台。
+项目以 BuyMate 的理性消费干预理念为设计来源，并在此基础上扩展了促销型 AI 对照、压力画像、冷静小游戏和研究数据后台。前端位于 `view/`，后端 API 位于 `worker/src/`。
 
-## 功能 / Features
+## 核心理念
 
-- 样本浏览、分类筛选和搜索
-- 待购清单与决策提交
-- 记录列表与详情查看
-- 双 AI 助手：促销型 AI 和守护型 AI
-- BuyMate 风格干预：需求反思、同类商品比较、销售话术重构、冷静延迟
-- 冷静小游戏：小恐龙跑酷、华容道、15 数码，用短回合益智任务打断冲动下单节奏
-- 情境压力实验：标记限时、稀缺、社交证明和折扣锚定线索，生成压力画像
-- 研究后台：AI 配置、行为统计与决策记录管理
-- 用户行为追踪与研究数据记录
-- 样本洞察、压力摘要、记录事件时间线和会话级分析
+BuyMate 的启发在于：干预应当在消费决策的关键时刻出现，并以温和、透明、尊重自主性的方式呈现。ShopGuard 将这一理念落实为以下原则：
 
-- Sample browsing, category filtering, and search
-- Watchlist and decision submission
-- Record list and detail view
-- Two AI assistants: Promotional AI and Guardian AI
-- BuyMate-style interventions: need reflection, comparable-product review, persuasion reframing, and delayed decision
-- Calm mini games: Dino Run, Klotski, and 15 Puzzle as short cognitive-switching tasks before purchase decisions
-- Situational pressure lab: mark urgency, scarcity, social proof, and discount anchoring cues to create pressure profiles
-- Research dashboard for AI settings, behavior stats, and decision record management
-- User behavior tracking and research data logging
-- Product insights, pressure summaries, record timelines, and session-level analysis
+- **赋能而非替代**：守护型 AI 提供检查路径和信息框架，不替用户下结论。
+- **识别压力而非制造压力**：将紧迫、稀缺、社交证明和价格锚定作为可观察的情境线索。
+- **让干预可追踪**：记录浏览、AI 对话、加购、撤回、干预使用和最终模拟决策。
+- **支持实验比较**：提供促销型 AI 与守护型 AI 两种角色，以及非 AI 冷静任务。
 
-## 研究设计映射 / Research Mapping
+## AI 干预闭环
 
-- `促销型 AI`：模拟直播电商中的销售式、劝服式对照条件。
-- `守护型 AI`：提供温和、实时的理性消费干预，不替用户做决定。
-- `BuyMate 干预`：把关键干预做成可点击事件并写入 `user_behaviors`。
-- `冷静小游戏`：把小恐龙跑酷、华容道、15 数码作为可触发、可记录的非 AI 冷静任务，研究注意力切换对冲动消费倾向的影响。
-- `情境压力实验`：把直播电商中的限时、稀缺、社交证明和价格锚定作为独立变量记录，用于研究情境压力与理性干预之间的关系。
-- `研究后台`：汇总行为、会话、AI 对话、提交记录和干预触达次数。
-- `压力摘要`：在不新增数据库表的情况下复用 `user_behaviors.metadata_json`，聚合压力画像数量、平均压力分、等级分布和高频线索。
-- `结算前反思`：在提交决策前记录用户是否完成关键检查。
+在一次商品浏览中，ShopGuard 支持如下研究路径：
 
-## 技术栈 / Tech Stack
+```text
+商品浏览 / 情境压力
+        ↓
+用户识别或填写压力线索
+        ↓
+守护型 AI 提供需求反思、预算校准、同类比较、话术重构或延迟购买建议
+        ↓
+用户继续浏览、加入待购、移除待购或提交模拟决策
+        ↓
+研究后台记录事件、AI 对话、压力画像与会话路径
+```
 
+促销型 AI 作为研究对照条件，可在用户停留于商品页一段时间后主动发起需求导向的对话；守护型 AI 则强调核验信息、识别诱导表达和恢复审慎判断。
+
+## 已实现功能
+
+### 面向参与者
+
+- 商品样本浏览、分类筛选、搜索、待购清单与模拟决策提交。
+- **守护型 AI**：需求反思、预算校准、同类商品比较、销售话术中性重构和冷静延迟建议。
+- **促销型 AI**：以需求与商品价值连接为主的研究对照，不使用催单、稀缺或从众表达。
+- BuyMate 风格的理性消费支持面板：理性支持模式、五类诱导话术提示和三项同类商品短名单。
+- 情境压力探针：记录限时紧迫、库存稀缺、社交证明和价格锚定等线索，生成压力分和压力等级。
+- 冷静小游戏：小恐龙跑酷、华容道和 15 数码，作为可记录的非 AI 注意力切换任务。
+- 结算前反思清单：在提交模拟决策前记录关键检查是否完成。
+
+### 面向研究者
+
+- 记录浏览、搜索、加购、移除、AI 对话、干预触发、压力探针和模拟决策。
+- 管理后台汇总行为量、会话、AI 使用、干预使用频次、压力分布和高频压力线索。
+- 商品洞察页展示样本浏览、加购、决策、AI 使用和最近行为时间线。
+- 后台配置 DeepSeek 兼容 API、模型名称和两类 AI 的启用状态。
+
+## 与 BuyMate 的关系
+
+| BuyMate 的设计启发 | ShopGuard 的当前实现 |
+| --- | --- |
+| 温和、陪伴式的理性消费干预 | 守护型 AI 使用需求反思、预算、比较与延迟购买提示，不替用户决策。 |
+| “关键词 + 标签 + 建议”的话术干预形式 | 前端提供五类诱导话术提示；用户也可将具体话术交给守护型 AI 重构。 |
+| 同类商品的简短、可解释比较 | 从本地样本库中选择同品类的三个候选商品，综合销量、评分、价格相似度和品牌多样性。 |
+| 在决策关键时刻介入 | 商品浏览、压力探针、加购后和结算前均可触发干预或记录事件。 |
+| 评估理性消费支持的效果 | 通过行为日志、AI 对话、压力画像、决策记录和会话路径支持后续研究。 |
+
+## 项目边界
+
+ShopGuard 是受 BuyMate 启发的研究平台与工程原型，**不是论文的逐项复现**，也不是生产级购物建议服务。
+
+- 当前使用的是站内商品样本和模拟决策，不接入真实直播平台或真实支付。
+- 当前不包含主播音频转写、实时商品切换识别，或 BuyMate 论文所述的自动化 `G1 → G2 → G3` 话术分析流水线。
+- 话术类别、压力分和同类商品排序均服务于研究原型；它们不构成经过验证的心理测量或真实市场结论。
+- 仓库不包含原论文的完整实验材料、分组流程、量表、参与者数据或统计脚本。
+- 正式研究前应补充知情同意、匿名化导出、随机分组、实验预注册与伦理审查。
+
+详细的研究目标、变量、事件与限制请参阅 [DOC.md](DOC.md)。
+
+## 技术栈
+
+- Vue.js + Vite
 - Cloudflare Workers
 - Cloudflare D1
 - Cloudflare KV
-- Vue.js + Vite
+- DeepSeek 兼容 Chat Completions API（流式输出）
 
-## 项目结构 / Project Structure
+## 项目结构
 
-- `view/` 前端静态资源
-- `worker/src/app/` Worker 入口与路由
-- `worker/src/modules/` 各业务模块
-- `worker/src/migrations/` 数据库迁移与种子数据
+```text
+view/                         Vue 前端：商品浏览、AI 干预、压力探针、小游戏与后台界面
+worker/src/app/               Worker 入口、HTTP 工具与路由注册
+worker/src/modules/ai/        促销型 / 守护型 AI、流式模型调用与对话记录
+worker/src/modules/shop/      商品样本、同类商品和样本洞察
+worker/src/modules/research/  行为追踪与研究汇总
+worker/src/modules/*/         认证、待购清单、模拟决策与后台管理
+worker/src/migrations/        D1 表结构、迁移与种子数据
+```
 
-## 本地运行 / Local Development
+## 本地运行
 
-进入 Worker 目录安装依赖：
+安装 Worker 依赖并启动本地服务：
 
 ```bash
 cd worker
 npm install
-```
-
-启动本地开发：
-
-```bash
 npm run dev
 ```
 
-`wrangler dev` 会同时提供 API 和已构建的静态页面。
-
-前端构建命令在 `view/` 目录：
+构建前端：
 
 ```bash
 cd view
@@ -80,17 +112,11 @@ npm install
 npm run build
 ```
 
-部署前先构建前端，再在 `worker/` 目录执行：
+`wrangler dev` 会同时提供 API 和已构建的静态页面。
 
-```bash
-npm run deploy
-```
+## 数据库初始化
 
-脚本会先构建 `view/`，然后执行 `wrangler deploy`。
-
-## 数据库初始化 / Database Setup
-
-先创建并绑定 D1 数据库，然后执行迁移与种子数据。当前脚本使用的数据库名是 `zero-1-base`：
+创建并绑定 D1 数据库后，在 `worker/` 目录依次运行：
 
 ```bash
 npm run db:init
@@ -104,35 +130,21 @@ npm run db:add-products
 npm run db:more-product-i18n
 ```
 
-如果你在 Cloudflare 上使用了不同的数据库名，请同步调整 `worker/package.json` 里的脚本。
+当前脚本使用的数据库名为 `zero-1-base`。如使用其他数据库名，请同步更新 `worker/package.json` 中的脚本。
 
-如果已经是旧库，再补跑 `worker/src/migrations/0003_order_events.sql`、`worker/src/migrations/0004_product_i18n.sql`、`worker/src/migrations/0006_intervention_behavior.sql`、`worker/src/migrations/0007_ai_conversation_safety.sql`、`worker/src/migrations/0008_product_chat_history.sql`、`worker/src/migrations/0009_add_more_products.sql` 和 `worker/src/migrations/0010_more_product_i18n.sql`。
+已有旧数据库时，请补跑 `worker/src/migrations/0003_order_events.sql`、`worker/src/migrations/0004_product_i18n.sql`、`worker/src/migrations/0006_intervention_behavior.sql`、`worker/src/migrations/0007_ai_conversation_safety.sql`、`worker/src/migrations/0008_product_chat_history.sql`、`worker/src/migrations/0009_add_more_products.sql` 和 `worker/src/migrations/0010_more_product_i18n.sql`。
 
-## 管理员 / Admin
+## AI 配置
 
-注册时如果用户名填写为 `admin`，系统会自动将该账号标记为管理员。
+以管理员身份登录后，在研究后台填写 DeepSeek API Key、Base URL 和模型名，并按实验条件启用或停用促销型 AI 与守护型 AI。请在正式数据收集前记录模型、提示词、参数、样本材料和项目版本。
 
-登录时使用用户名 + 密码。
+## API 概览
 
-## AI 配置 / AI Configuration
-
-在管理后台中填写 DeepSeek API Key、Base URL 和模型名后，即可启用 AI 研究助手。
-
-## 路由概览 / Routes
-
-- `GET /` 前端页面
-- `GET /api/products`
-- `GET /api/products/:id/insights`
-- `GET /api/categories`
-- `GET /api/cart`
-- `GET /api/orders`
-- `GET /api/ai/history`
-- `GET /api/admin/ai-config`
-- `GET /api/admin/orders`
-- `GET /api/admin/orders/:id`
-- `PUT /api/admin/orders/:id/status`
-- `GET /api/research/summary`
-- `POST /api/research/track`
+- `GET /api/products`、`GET /api/products/:id/insights`、`GET /api/categories`
+- `GET /api/cart`、`GET /api/orders`
+- `POST /api/ai/chat`、`POST /api/ai/promotional-nudge`、`GET /api/ai/history`
+- `POST /api/research/track`、`GET /api/research/summary`
+- `GET /api/admin/ai-config`、`GET /api/admin/orders`、`PUT /api/admin/orders/:id/status`
 
 ## License
 
